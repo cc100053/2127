@@ -32,12 +32,17 @@ Guests input text decrees or voice statements describing their vision or law for
   - Live 2D dynamic canvas texture hovering over the city center.
   - **Live Progress Bar (0%–100%)**: When processing a decree, the board displays the incoming prompt in real time, animated scanning hazard chevrons, stage diagnostics, and percentage progress.
   - **Breaking News Broadcast**: Once computed, the board transitions to broadcasting the 2127 breaking headline with dynamic audio equalizer waveforms.
-- **Auto-Stream Guest Mode (Exhibition Ready)**:
-  - Continuously cycles and automatically applies curated guest prompts from an exhibition queue every 14 seconds.
-  - Immediate guest override: typing or speaking resets the timer and prioritizes manual guest decrees.
-- **Gemini 2.5 Flash Structured JSON Mode**:
-  - Direct integration with Google Gemini 2.5 Flash API using strict response schemas.
-  - **Smart Local Fallback Engine**: If no API key is provided, the simulation uses an offline semantic NLP engine so that visitors can test decrees instantly.
+- **Persistent World Accretion**:
+  - Decrees layer onto the city instead of erasing it — the world carries the marks of every guest who came before.
+  - A `STANDING DECREES` ledger shows what the city is still holding, and from whom.
+- **Generative Scene DSL**:
+  - When no preset spawn fits a decree, the model composes the form itself from a primitive node tree, with bilateral `mirror` symmetry and five animators.
+  - Strictly data — model output is never evaluated. A hardened validator clamps, drops or rejects anything malformed and falls back to the hand-built spawners.
+- **Layered AI Engine with Graceful Degradation**:
+  - `gemini-2.5-flash` first, using strict structured-output response schemas.
+  - Falls back to `gemini-2.5-flash-lite` when Flash is rate-limited (429) or erroring (5xx).
+  - Falls back again to a built-in offline semantic parser if neither model responds, so the installation never goes dead.
+  - A bad key or malformed request (400/401/403) stops the chain immediately rather than burning quota on a retry that would fail identically.
 - **Exhibition HUD & Soundscape**:
   - 3 live metric gauge bars tracking Nature, Technology, and Order.
   - Web Speech API integration for direct speech-to-text voice input.
@@ -48,10 +53,29 @@ Guests input text decrees or voice statements describing their vision or law for
 
 ## Quick Start
 
-### 1. Direct Browser Launch
-Open `index.html` directly in any modern web browser (Chrome, Edge, Safari, Firefox). No build step or package installation required.
+### 1. Add your API key
 
-### 2. Local HTTP Server (Recommended)
+```bash
+cp .env.example .env
+# then edit .env and paste your key from https://aistudio.google.com/apikey
+```
+
+`.env` is read by the browser at runtime — there is no build step — so the app **must be
+served over HTTP** for the key to load (see below). Opening `index.html` via `file://`
+skips `.env` silently and falls back to the in-app **API KEY** modal, or to the offline
+parser if no key is set anywhere.
+
+> **Security note:** because `.env` is fetched by the page, your static server serves it to
+> anyone who can reach the host. That is fine for local testing. For a kiosk on a shared or
+> public network, leave `.env` empty and enter the key through the in-app **API KEY** modal
+> instead, which stores it in `localStorage` and never puts it on the wire.
+
+`.env` is gitignored. `.env.example` is the committed template — never commit a real key.
+
+### 2. Direct Browser Launch
+Open `index.html` directly in any modern web browser (Chrome, Edge, Safari, Firefox). No build step or package installation required. (`.env` will not load this way — use the API KEY modal.)
+
+### 3. Local HTTP Server (Recommended)
 Using Python:
 ```bash
 python3 -m http.server 8080

@@ -43,6 +43,13 @@
 
 ---
 
+### AI Engine & Quota
+- [x] Auto-stream removed — zero API calls while idle
+- [x] Ordered model chain: 2.5 Flash -> 2.5 Flash-Lite -> offline parser
+- [x] Early break on 400/401/403 so a bad key/request costs one call, not two
+- [x] `.env` runtime loader (gitignored) with `.env.example` template
+- [x] Header + telemetry name the model that actually served each decree
+
 ### Generative Scene DSL
 - [x] Primitive whitelist + node-tree interpreter (`buildComposition`)
 - [x] Hardened validator (`sanitizeComposition`) — 29 unit assertions, no eval of model output
@@ -64,7 +71,9 @@
       iteration on the system-prompt exemplars (silhouette guidance, part counts) against
       real Gemini output with a live API key.
 - [ ] **End-to-end test with a real Gemini key**: the composition path has only been exercised
-      with hand-authored specs matching the schema. The model's actual output has not been seen.
+      with hand-authored specs and a stubbed network. The model's actual output has not been seen.
+- [ ] **Cache guest decrees** in localStorage keyed by normalised prompt — exhibition visitors
+      repeat each other heavily, so a 30-50% hit rate is realistic once traffic is real.
 - [ ] Widen world axes beyond nature/tech/order: weather, time-of-day, water level, density.
 - [ ] Word-boundary fixes in `localSemanticParser` — `ai` currently matches *rain/air/said*,
       `hat` matches *that/what*, `ring` matches *during*. Default engine when no API key is set.

@@ -77,6 +77,19 @@ The application is fully functional, verified, and running as a self-contained w
      deliberately super-luminous (ambient 0.65 + hemi 1.3 + sun 2.2 @ exposure 1.45) and a
      mid-tone albedo saturates straight to white.
 
+11. **Auto-Stream Removed & Layered Model Chain**:
+   - The exhibition auto-stream is **gone** (button, queue, countdown, 1s interval, all
+     `autoStreamCountdown` resets). It was cycling 8 curated prompts every 16s — ~1,800 API
+     calls per 8-hour day to obtain 8 distinct answers, which was the entire quota problem.
+     The app is now silent when idle and costs nothing until a guest actually transmits.
+   - `MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.5-flash-lite']` is walked in order.
+     429/5xx/network errors fall through to the next model; **400/401/403 break immediately**
+     (malformed request or bad key would fail identically on the next model — don't pay twice).
+     If every model fails, `localSemanticParser` still answers.
+   - `lastEngineLabel` drives the header status and telemetry tag, so the HUD names the model
+     that actually served the decree rather than assuming Flash.
+   - Auth moved from `?key=` in the URL to the `x-goog-api-key` header.
+
 ---
 
 ## 3. Active Decisions & Conventions
@@ -87,6 +100,11 @@ The application is fully functional, verified, and running as a self-contained w
     parser cannot author novel form, so `localSemanticParser` continues to return enum
     `proceduralSpawn` values and no `composition`. That path is exactly the DSL's own
     validation-failure fallback, so behaviour stays coherent with no API key set.
+- **No Idle API Traffic**: nothing may call the model unless a guest acted. Any future
+  ambient/attract mode must serve pre-computed responses from a static file, never live calls.
+- **Key Precedence**: `.env` (fetched at runtime, dev only) > `localStorage` (in-app modal,
+  the kiosk path). `.env` is gitignored; `.env.example` is the committed template. The
+  placeholder value `your_api_key_here` is explicitly treated as "no key".
 - **Never Evaluate Model Output**: composition specs are inert data run through
   `sanitizeComposition()`. Do not add a DSL feature that requires eval, Function(), or
   injecting model-supplied strings into the DOM — this runs unattended in a public space.

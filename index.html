@@ -177,15 +177,6 @@
 
     <!-- Quick Control Tools -->
     <div class="flex items-center space-x-2">
-      <!-- Auto-Stream Guest Prompts Toggle -->
-      <button id="btn-auto-stream" title="Toggle Auto-Stream Guest Prompts" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/90 hover:bg-emerald-950/60 border border-emerald-500/60 text-emerald-300 hover:text-white flex items-center space-x-1.5 font-mono shadow-[0_0_10px_rgba(16,185,129,0.25)]">
-        <span class="relative flex h-2 w-2">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-        </span>
-        <span id="auto-stream-text" class="font-mono uppercase">Auto-Guest: 14s</span>
-      </button>
-
       <!-- Lighting Atmosphere Toggle -->
       <button id="btn-light-mode" title="Toggle Lighting Atmosphere (Ultra Neon / Sunlight / Dusk)" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/80 hover:bg-yellow-950/40 border border-yellow-500/60 text-yellow-300 hover:text-white flex items-center space-x-1.5 font-mono shadow-[0_0_10px_rgba(234,179,8,0.25)]">
         <i data-lucide="sun" class="w-3.5 h-3.5 text-yellow-400"></i>
@@ -2944,7 +2935,41 @@
        ========================================================================== */
     const GEMINI_API_STORAGE_KEY = '2127_GEMINI_API_KEY';
 
+    // Primary model, then the cheaper/higher-quota fallback. Tried in order.
+    const MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+    let envConfig = {};
+    let lastEngineLabel = 'GEMINI 2.5 FLASH';
+
+    // The page is static with no build step, so there is no bundler to inline .env.
+    // Fetch and parse it at runtime instead. Served over http (npm run dev), this works;
+    // opened via file:// it fails harmlessly and the localStorage key takes over.
+    async function loadEnvConfig() {
+      try {
+        const res = await fetch('.env', { cache: 'no-store' });
+        if (!res.ok) return {};
+        const out = {};
+        (await res.text()).split('\n').forEach((line) => {
+          const t = line.trim();
+          if (!t || t.startsWith('#')) return;
+          const eq = t.indexOf('=');
+          if (eq === -1) return;
+          const k = t.slice(0, eq).trim();
+          let v = t.slice(eq + 1).trim();
+          if (v.length > 1 && ((v[0] === '"' && v.endsWith('"')) || (v[0] === "'" && v.endsWith("'")))) {
+            v = v.slice(1, -1);
+          }
+          if (k) out[k] = v;
+        });
+        return out;
+      } catch (err) {
+        return {};
+      }
+    }
+
+    // .env wins for local development; the in-app modal remains the kiosk path.
     function getStoredApiKey() {
+      const fromEnv = (envConfig.GEMINI_API_KEY || '').trim();
+      if (fromEnv && !/^your[_-]?api[_-]?key/i.test(fromEnv)) return fromEnv;
       return localStorage.getItem(GEMINI_API_STORAGE_KEY) || '';
     }
 
@@ -2966,8 +2991,9 @@
 
     function updateAIStatusDisplay(hasKey) {
       const statusText = document.getElementById('ai-status-text');
+      if (!statusText) return;
       if (hasKey) {
-        statusText.innerText = "ONLINE // GEMINI 2.5 FLASH ACTIVE";
+        statusText.innerText = `ONLINE // ${lastEngineLabel} ACTIVE`;
         statusText.className = "text-cyber-cyan font-semibold";
       } else {
         statusText.innerText = "ONLINE // LOCAL ENGINE ACTIVE";
@@ -3012,8 +3038,6 @@
         console.log("No Gemini API key provided. Using built-in 2127 Local Semantic Parser.");
         return localSemanticParser(decreePrompt);
       }
-
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
       const systemPrompt = `You are the 2127 Central Societal AI governing a futuristic metropolis in the year 2127. 
 A citizen or governor transmits an arbitrary decree, law, or wild vision. 
@@ -3165,24 +3189,57 @@ You must analyze this decree and output structured numerical values and zero-sho
         }
       };
 
-      try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
-        });
+      // Walk MODEL_CHAIN in order: 2.5 Flash first, 2.5 Flash-Lite when Flash is
+      // rate-limited or erroring, local parser only if every model is unavailable.
+      let parsed = null;
+      let servedBy = null;
 
-        if (!response.ok) {
-          const errData = await response.text();
-          console.warn("Gemini API Error:", errData);
-          return localSemanticParser(decreePrompt);
+      for (const model of MODEL_CHAIN) {
+        const endpoint =
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+        try {
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+            body: JSON.stringify(requestBody)
+          });
+
+          if (!response.ok) {
+            const errText = await response.text();
+            console.warn(`[2127] ${model} responded ${response.status}:`, errText.slice(0, 400));
+            // 400 = our request/schema is malformed and 401/403 = the key is bad; the
+            // next model would fail identically, so stop paying for retries.
+            if ([400, 401, 403].includes(response.status)) break;
+            continue;                       // 429 / 5xx / transient: try the next model
+          }
+
+          const data = await response.json();
+          const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (!candidate) {
+            console.warn(`[2127] ${model} returned no text payload`);
+            continue;
+          }
+
+          parsed = JSON.parse(candidate);
+          servedBy = model;
+          break;
+        } catch (err) {
+          console.warn(`[2127] ${model} invocation failed:`, err);
+          continue;                          // network error / bad JSON: try the next model
         }
+      }
 
-        const data = await response.json();
-        const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!candidate) throw new Error("No response text from Gemini");
+      if (!parsed) {
+        console.warn("[2127] All Gemini models unavailable — falling back to local parser.");
+        lastEngineLabel = 'LOCAL // MODELS UNAVAILABLE';
+        updateAIStatusDisplay(true);
+        return localSemanticParser(decreePrompt);
+      }
 
-        const parsed = JSON.parse(candidate);
+      lastEngineLabel = servedBy.toUpperCase().replace(/-/g, ' ');
+      updateAIStatusDisplay(true);
+
+      try {
         return {
           natureLevel: Math.max(0, Math.min(1, parsed.natureLevel ?? 0.5)),
           techLevel: Math.max(0, Math.min(1, parsed.techLevel ?? 0.5)),
@@ -3198,7 +3255,7 @@ You must analyze this decree and output structured numerical values and zero-sho
           composition: parsed.composition || null
         };
       } catch (err) {
-        console.error("Gemini invocation failed, falling back to local engine:", err);
+        console.error("[2127] Malformed model payload, falling back to local engine:", err);
         return localSemanticParser(decreePrompt);
       }
     }
@@ -3374,20 +3431,6 @@ You must analyze this decree and output structured numerical values and zero-sho
     const decreeInput = document.getElementById('decree-input');
     const loadingOverlay = document.getElementById('loading-overlay');
 
-    // Exhibition Auto-Guest Prompt Stream Queue
-    const GUEST_PROMPTS_QUEUE = [
-      "Ban all fossil machinery and construct vertical bioluminescent algae towers to cleanse the atmosphere",
-      "Deploy orbital defense drones and mandate 24/7 AI productivity scans across all sectors",
-      "Rewild downtown sector into a self-sustaining vertical redwood canopy with open bio-sanctuaries",
-      "Synthesize all architecture with photosynthetic living coral and solar glass terraces",
-      "Dismantle central surveillance towers and distribute power cells to underground factions",
-      "Construct orbital solar mirrors to eliminate winter nights and generate perpetual clean energy",
-      "Fuse citizen neural interfaces with the metropolis AI network to optimize power consumption",
-      "Release atmospheric scrubber nanites to clear toxic smog and restore blue sky horizons"
-    ];
-    let guestPromptIndex = 0;
-    let autoStreamEnabled = true;
-    let autoStreamCountdown = 14;
     let isDecreeProcessing = false;
 
     async function handleDecreeSubmission(promptText, origin = 'guest') {
@@ -3457,8 +3500,6 @@ You must analyze this decree and output structured numerical values and zero-sho
         loadingOverlay.classList.add('opacity-0');
         document.getElementById('btn-transmit').disabled = false;
         isDecreeProcessing = false;
-        // Reset countdown for next auto-stream
-        autoStreamCountdown = 16;
       }
     }
 
@@ -3498,7 +3539,7 @@ You must analyze this decree and output structured numerical values and zero-sho
 
       const hasApiKey = !!getStoredApiKey();
       if (engineTag) {
-        engineTag.innerText = hasApiKey ? "GEMINI 2.5 FLASH API" : "LOCAL ZERO-SHOT NLP";
+        engineTag.innerText = hasApiKey ? lastEngineLabel : "LOCAL ZERO-SHOT NLP";
         engineTag.className = hasApiKey ? "text-[9px] px-1.5 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/40" : "text-[9px] px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-500/40";
       }
 
@@ -3569,57 +3610,11 @@ You must analyze this decree and output structured numerical values and zero-sho
       }
     });
 
-    // Pause auto-stream while user is typing
-    decreeInput.addEventListener('input', () => {
-      autoStreamCountdown = 25;
-    });
-
-    // Auto-Stream Guest Prompts Loop (Exhibition Mode)
-    setInterval(() => {
-      if (!autoStreamEnabled || isDecreeProcessing) return;
-
-      autoStreamCountdown--;
-      const textSpan = document.getElementById('auto-stream-text');
-      if (textSpan) {
-        textSpan.innerText = `Auto-Guest: ${autoStreamCountdown}s`;
-      }
-
-      if (autoStreamCountdown <= 0) {
-        autoStreamCountdown = 16;
-        const nextPrompt = GUEST_PROMPTS_QUEUE[guestPromptIndex % GUEST_PROMPTS_QUEUE.length];
-        guestPromptIndex++;
-        
-        decreeInput.value = nextPrompt;
-        handleDecreeSubmission(nextPrompt, 'ambient');
-      }
-    }, 1000);
-
-    // Auto-stream toggle button
-    const autoStreamBtn = document.getElementById('btn-auto-stream');
-    if (autoStreamBtn) {
-      autoStreamBtn.addEventListener('click', () => {
-        autoStreamEnabled = !autoStreamEnabled;
-        const textSpan = document.getElementById('auto-stream-text');
-        if (autoStreamEnabled) {
-          autoStreamCountdown = 12;
-          if (textSpan) textSpan.innerText = `Auto-Guest: 12s`;
-          autoStreamBtn.classList.remove('opacity-50', 'border-slate-700');
-          autoStreamBtn.classList.add('border-emerald-500/60', 'text-emerald-300');
-          playSoundEffect('click');
-        } else {
-          if (textSpan) textSpan.innerText = `Auto-Guest: Off`;
-          autoStreamBtn.classList.add('opacity-50', 'border-slate-700');
-          autoStreamBtn.classList.remove('border-emerald-500/60', 'text-emerald-300');
-        }
-      });
-    }
-
     // Preset button handler
     window.applyPreset = function(presetKey) {
       const p = PRESETS[presetKey];
       if (p) {
         playSoundEffect('click');
-        autoStreamCountdown = 20; // reset auto stream timer
         applyStateTransformation(p, 2.0);
       }
     };
@@ -3692,7 +3687,6 @@ You must analyze this decree and output structured numerical values and zero-sho
 
       recognition.onstart = () => {
         isRecording = true;
-        autoStreamCountdown = 30; // give speaker plenty of time
         voiceBtn.classList.add('border-red-500', 'text-red-400', 'bg-red-950/50', 'animate-pulse');
       };
 
@@ -3736,9 +3730,13 @@ You must analyze this decree and output structured numerical values and zero-sho
     /* ==========================================================================
        9. INITIALIZATION
        ========================================================================== */
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
       init3D();
       updateUIReadouts();
+      envConfig = await loadEnvConfig();
+      if (envConfig.GEMINI_API_KEY) {
+        console.log('[2127] API key loaded from .env');
+      }
       updateAIStatusDisplay(Boolean(getStoredApiKey()));
       renderDecreeLedger();
 
