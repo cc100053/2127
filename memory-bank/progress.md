@@ -81,11 +81,14 @@
       2.5 Flash-Lite answered the same prompts in 1.5-3.2s and still composed. For a kiosk
       where a guest is watching a progress bar, Lite should probably be the PRIMARY and Flash
       the quality fallback — the inverse of the current MODEL_CHAIN order.
-- [ ] **Forms compose vertically**: the model builds creatures standing up along Y rather than
-      lying along Z, so a dragon reads as a totem. Needs system-prompt guidance on orientation
-      and worked exemplars.
-- [ ] **Model ignores `mirror`**: it emits duplicate left/right parts by hand instead, spending
-      node budget. Prompt should push harder on building one side.
+- [x] **Forms compose vertically** — FIXED by an explicit axis convention (+Z forward) plus a
+      worked exemplar in the phase-B prompt. Measured after: dragon z/y 5.08 (was a vertical
+      totem), cargo-walker 4.32, while cathedral stayed correctly tall at 0.54 and jellyfish
+      at 0.84. The model now distinguishes things that travel from things that stand.
+- [ ] **Model still ignores `mirror`** — 0 uses across 4 probes even with a hard prompt rule;
+      it hand-duplicates bilateral parts (cargo-walker: 25 duplicate-pair matches). Mitigated
+      by raising DSL_MAX_NODES 14 -> 20 rather than spending more calls. Worth one more prompt
+      iteration someday, or drop `mirror` from the schema as dead weight.
 - [ ] **Cache guest decrees** in localStorage keyed by normalised prompt — exhibition visitors
       repeat each other heavily, so a 30-50% hit rate is realistic once traffic is real.
 - [ ] Widen world axes beyond nature/tech/order: weather, time-of-day, water level, density.

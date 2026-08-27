@@ -1822,7 +1822,7 @@
     };
     const DSL_ANIMATORS = ['none', 'spin', 'bob', 'orbit', 'undulate', 'pulse'];
     const DSL_ANCHORS = { ground: 0.0, sky: 17.0, center: 3.0 };  // sky clears the HUD band
-    const DSL_MAX_NODES = 14;    // per form, before mirroring
+    const DSL_MAX_NODES = 20;    // per form, before mirroring
     const DSL_MAX_COPIES = 6;    // placements of the form around the city
     const DSL_MAX_MESHES = 60;   // hard ceiling on total meshes the form may produce
     const DSL_MAX_EXTENT = 20;   // world units; the city grid is 30 across, so a form
@@ -3223,38 +3223,71 @@ You must analyze this decree and output structured numerical values and zero-sho
 resolved into societal parameters. Your only job now is to compose the physical FORM the decree
 summons into the metropolis, as a node tree.
 
-- composition: THE IMPORTANT ONE. If the decree names or implies any object, creature,
-  structure or phenomenon that is NOT covered by proceduralSpawn's fixed types, BUILD IT
-  YOURSELF here as a node tree. Do not force it into the nearest preset — compose it.
-  A dragon, a cathedral, a whale, a lighthouse, a broken statue, a mushroom forest, a
-  fleet of kites: all of these are compositions. Leave composition null ONLY when the
-  decree summons no object at all (a pure policy or mood change).
+If the decree names or implies any object, creature, structure or phenomenon, BUILD IT.
+A dragon, a cathedral, a whale, a lighthouse, a broken statue, a mushroom forest, a fleet
+of kites: all of these are forms you compose from primitives. A recognisable silhouette
+matters far more than detail.
+
+AXES — read this before placing anything:
+  +X is right, +Y is UP, +Z is FORWARD.
+  Anything that flies, swims, walks or moves LIES ALONG Z. Its depth (the z slot of size)
+  is its largest dimension. It is NOT tall in Y. A dragon, a whale, a ship, a bird, a fish,
+  a train: all long in Z, low in Y.
+  Only things that genuinely stand — towers, statues, trees, columns, cathedrals — are
+  tall in Y.
+  Cylinders and cones are built standing along Y. To lay one down so its length runs along
+  Z, put the length in the y slot and set rot to [90, 0, 0].
+
+MIRROR — this is a hard rule:
+  NEVER emit two parts that are mirror images of each other. Build the +X side ONLY and set
+  "mirror": true on it; the left side is generated for you. Emitting both a left and a right
+  wing, arm, horn, fin or leg is WRONG and wastes half your part budget.
+
+FIELDS:
     - name: Short label for the form, e.g. "sky-dragon"
     - anchor: "ground" (sits on the city) | "sky" (floats above it) | "center" (the plaza)
     - count: 1-6, how many copies ring the city. Use 1 for a singular landmark.
     - radius: 0-16, how far from the centre the copies sit (ignored when count is 1)
-    - scale: 0.2-4 overall size multiplier
-    - nodes: 1-14 parts. Each part:
+    - scale: 0.2-4 overall size multiplier. The whole city is only 30 units across, so a
+      form larger than about 18 units total will be shrunk to fit — build to real scale.
+    - nodes: 1-20 parts. Each part:
         - prim: "box"|"sphere"|"cylinder"|"cone"|"torus"|"torusKnot"|"plane"|"ring"|"icosa"|"octa"|"tetra"
-        - size: [width, height, depth] bounding box in world units (a city building is
-          about 3 wide, 6 tall). This is the bounding box for EVERY primitive, not
-          constructor arguments. Cylinders and cones stand upright along Y — give the
-          length in the y slot and rotate the part to lay it down.
+        - size: [width, height, depth] BOUNDING BOX in world units (a city building is
+          about 3 wide, 6 tall). This is the bounding box for EVERY primitive, never
+          constructor arguments. Non-uniform sizes are encouraged: a sphere of [3,1,9] is
+          a long flat body, which is exactly what most creatures need.
         - pos: [x, y, z] offset from the form's own origin
         - rot: [x, y, z] rotation in DEGREES
         - color: Hex string; emissive: 0-1 glow; opacity: 0.15-1; metal: 0-1
-        - mirror: true to duplicate this part mirrored across the x axis — use it for
-          wings, limbs, horns, arms. Build only the RIGHT side and set mirror true.
+        - mirror: true for the +X half of any bilateral part (see MIRROR above)
     - animate: { type: "none"|"spin"|"bob"|"orbit"|"undulate"|"pulse",
                  speed: 0.05-4, amp: 0-3, axis: "x"|"y"|"z" }
       Pick the motion the thing would really have: a dragon orbits, a jellyfish undulates,
       a monolith spins slowly, a heart pulses, a lantern bobs.
-  Compose forms out of several parts with deliberate positions. A recognisable silhouette
-  matters far more than detail.
-  The composition field is REQUIRED on every response. If the decree genuinely summons no object —
-  a pure policy, mood or law with nothing to see — return it with an empty nodes array:
-  { "name": "none", "nodes": [] }. 
-Never omit the field.`;
+
+WORKED EXAMPLE — study the proportions and the use of mirror:
+{
+  "name": "sky-ray", "anchor": "sky", "count": 3, "radius": 11, "scale": 1.0,
+  "nodes": [
+    { "prim": "sphere", "size": [3, 1.2, 9], "pos": [0, 0, 0], "rot": [0, 0, 0],
+      "color": "#7de3ff", "emissive": 0.5, "metal": 0.2 },
+    { "prim": "cone", "size": [1.6, 2.6, 1.6], "pos": [0, 0, 5.4], "rot": [90, 0, 0],
+      "color": "#7de3ff", "emissive": 0.6 },
+    { "prim": "plane", "size": [7, 0.1, 6], "pos": [3.4, 0.1, -0.5], "rot": [0, 0, 12],
+      "color": "#3fa9d6", "opacity": 0.75, "emissive": 0.4, "mirror": true },
+    { "prim": "cylinder", "size": [0.4, 7, 0.4], "pos": [0, 0, -6.5], "rot": [90, 0, 0],
+      "color": "#3fa9d6", "emissive": 0.3 }
+  ],
+  "animate": { "type": "orbit", "speed": 0.5, "amp": 1, "axis": "y" }
+}
+Why this works: the body is wide in x, LONG in z and flat in y, so the creature lies along
+its direction of travel instead of standing on end. Only the right wing is described and
+mirror makes the left. The nose cone and the tail cylinder are rotated 90 degrees about x
+so their lengths run along z. Four parts describe the whole animal.
+
+The composition field is REQUIRED on every response. If the decree genuinely summons no
+object — a pure policy, mood or law with nothing to see — return it with an empty nodes
+array: { "name": "none", "nodes": [] }. Never omit the field.`;
 
       const context = `CITIZEN DECREE: "${decreePrompt}"
 RESOLVED CITY STATE: nature ${resolvedState.natureLevel.toFixed(2)}, tech ${resolvedState.techLevel.toFixed(2)}, order ${resolvedState.orderLevel.toFixed(2)}

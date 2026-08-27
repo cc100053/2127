@@ -126,6 +126,17 @@ The application is fully functional, verified, and running as a self-contained w
      validates, otherwise phase A's enum `proceduralSpawn` as the fallback. This keeps it to
      exactly one layer per decree.
 
+15. **Phase-B Prompt Tuning (measured, 2026-08-27)**:
+   - The form prompt now opens with an explicit axis convention (+X right, +Y up, +Z forward),
+     states that anything which flies/swims/walks lies ALONG Z while only towers and statues
+     are tall in Y, and closes with a full worked exemplar (a 4-part "sky-ray") annotated with
+     why its proportions work.
+   - **Result: orientation fixed.** dragon z/y 5.08 and cargo-walker 4.32 (both now lie along
+     travel), while cathedral 0.54 and jellyfish 0.84 stayed correctly vertical — the model
+     distinguishes correctly rather than over-applying the rule.
+   - **`mirror` remains ignored** despite being stated as a hard rule. Mitigated in code by
+     raising `DSL_MAX_NODES` to 20. Do not assume `mirror` will be used when budgeting nodes.
+
 ---
 
 ## 3. Active Decisions & Conventions
