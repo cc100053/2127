@@ -48,9 +48,28 @@ The application is fully functional, verified, and running as a self-contained w
    - Indicates engine status (`LOCAL ZERO-SHOT NLP` vs `GEMINI 2.5 FLASH API`).
    - Extended procedural spawner to support celestial quantum singularities (`black_hole`), cyber alien fleets (`ufo`), and inverted golden monoliths (`pyramids`).
 
+9. **Persistent World Accretion (`worldLayers`)**:
+   - Decrees no longer wipe the world. Each spawning decree creates its own layer
+     (`THREE.Group`) rotated into a fresh sector by the golden angle, so successive
+     guests accrete around the city instead of stacking on identical plots.
+   - `MAX_WORLD_ENTITIES` (32) caps skyline density; `enforceWorldBudget()` retires
+     the oldest **ambient** (auto-stream) layer before ever touching a **guest** layer,
+     so a visitor's decree outlives the auto-stream that follows it.
+   - `retireLayer()` fades a layer out, then removes AND disposes it. `disposeObject3D()`
+     walks the subtree freeing geometries/materials — scene-graph removal alone leaks VRAM.
+   - `#decree-ledger` HUD panel lists standing decrees (prompt, GUEST/AMBIENT tag, time,
+     object count) so visitors can see their mark persisting in the world.
+   - Decree provenance flows `handleDecreeSubmission(prompt, origin)` →
+     `targetState.sourcePrompt` / `sourceOrigin` → the layer record.
+
 ---
 
 ## 3. Active Decisions & Conventions
 - **Single-File Preference**: Currently maintained inside `index.html` for instant portability and zero-build kiosk execution.
 - **Parametric LERPs over Reloads**: All city transformations are done by lerping numeric values over 2.0–2.4s using GSAP.
 - **Dual Engine Standard**: Any new prompt feature or schema modification must be mirrored in both `queryGeminiSocietalAI` and `localSemanticParser`.
+- **The World Accumulates**: Never clear `dynamicEntitiesGroup` wholesale. Anything added
+  to the scene at runtime must join a layer via `registerEntity()` and be released through
+  `retireLayer()`, so lifetime and GPU disposal stay in one place.
+- **Guest Marks Outlive Guests**: Auto-stream is ambient drift *between* visitors, never an
+  eraser of their decrees. Eviction priority is ambient-first, oldest-first, newest-never.

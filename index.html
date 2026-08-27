@@ -375,6 +375,21 @@
         "INITIALIZING 2127 CENTRAL SOCIETAL SIMULATION PROTOCOL..."
       </p>
     </div>
+
+    <!-- Standing Decree Ledger: what the city is still carrying, and from whom -->
+    <div class="cyber-panel p-3 rounded-xl relative text-xs font-mono">
+      <div class="corner-tl"></div><div class="corner-tr"></div>
+      <div class="flex items-center justify-between text-slate-400 mb-2">
+        <span class="flex items-center gap-1.5 text-cyber-cyan font-bold text-[10px] tracking-wider uppercase">
+          <span class="w-2 h-2 rounded-full bg-cyber-cyan animate-pulse inline-block"></span>
+          STANDING DECREES
+        </span>
+        <span id="ledger-load" class="text-[9px] text-slate-500">0 / 32</span>
+      </div>
+      <div id="decree-ledger" class="flex flex-col gap-1.5 max-h-44 overflow-y-auto pr-1">
+        <p class="text-[10px] text-slate-500 italic">City unmarked. Awaiting first decree.</p>
+      </div>
+    </div>
   </aside>
 
   <!-- Center Floating Status Notice (e.g. while calculating AI transformation) -->
@@ -729,6 +744,15 @@
     let citizenGroup;
     const dynamicEntities = [];
     let dynamicEntitiesGroup;
+
+    // --- Persistent World Accretion ---
+    // Decrees layer onto the city instead of erasing it, so the world a visitor
+    // walks into carries the marks of everyone who came before them today.
+    const MAX_WORLD_ENTITIES = 32;          // objects the skyline can carry at once (density dial)
+    const GOLDEN_ANGLE = 2.399963229728653; // rad; spreads successive layers around the city
+    const worldLayers = [];                 // [{ id, group, entities, prompt, origin, ts, color }]
+    let activeDecreeGroup = null;
+    let decreeCounter = 0;
     let hemiLight;
     const districtLights = [];
     const streetlights = [];
@@ -1707,14 +1731,16 @@
           gsap.to(c.legRGroup.position, { y: 0.22, z: 0, duration: 1.2 });
         }
 
-        // Clear existing hat & aura
+        // Clear existing hat & aura (dispose, or 50 citizens x every decree leaks VRAM)
         while (c.hatGroup.children.length > 0) {
           const child = c.hatGroup.children[0];
           c.hatGroup.remove(child);
+          disposeObject3D(child);
         }
         while (c.auraGroup.children.length > 0) {
           const child = c.auraGroup.children[0];
           c.auraGroup.remove(child);
+          disposeObject3D(child);
         }
 
         // Procedural Headwear Primitive Synthesizer
@@ -1779,16 +1805,134 @@
     /* --------------------------------------------------------------------------
        Dynamic Procedural Entity Spawner (Zero-Shot Synthesis)
        -------------------------------------------------------------------------- */
-    function spawnProceduralEntities(spawnConfig = {}) {
-      // Clean up previous dynamic entities
-      while (dynamicEntitiesGroup.children.length > 0) {
-        const child = dynamicEntitiesGroup.children[0];
-        dynamicEntitiesGroup.remove(child);
-      }
-      dynamicEntities.length = 0;
+    /* --------------------------------------------------------------------------
+       World Accretion: layer lifecycle, GPU disposal, and the decree ledger
+       -------------------------------------------------------------------------- */
 
+    // Removing a node from the scene graph does NOT free its VRAM. Walk it and
+    // release every geometry/material, or an all-day exhibition bleeds memory.
+    function disposeObject3D(root) {
+      root.traverse((obj) => {
+        if (obj.geometry) obj.geometry.dispose();
+        const mat = obj.material;
+        if (Array.isArray(mat)) mat.forEach((m) => m && m.dispose());
+        else if (mat) mat.dispose();
+      });
+    }
+
+    function retireLayer(layer, instant = false) {
+      const idx = worldLayers.indexOf(layer);
+      if (idx !== -1) worldLayers.splice(idx, 1);
+
+      // Detach from the animation registry first so nothing ticks a dying layer.
+      layer.entities.forEach((ent) => {
+        const i = dynamicEntities.indexOf(ent);
+        if (i !== -1) dynamicEntities.splice(i, 1);
+      });
+
+      const finalize = () => {
+        dynamicEntitiesGroup.remove(layer.group);
+        disposeObject3D(layer.group);
+        renderDecreeLedger();
+      };
+
+      if (instant) { finalize(); return; }
+      gsap.killTweensOf(layer.group.scale);
+      gsap.to(layer.group.scale, {
+        x: 0.001, y: 0.001, z: 0.001,
+        duration: 1.1, ease: "power2.in", onComplete: finalize
+      });
+    }
+
+    function worldEntityCount() {
+      return worldLayers.reduce((n, l) => n + l.entities.length, 0);
+    }
+
+    // Ambient auto-stream layers yield their space before a real guest's decree does.
+    function enforceWorldBudget() {
+      let guard = 0;
+      while (worldEntityCount() > MAX_WORLD_ENTITIES && worldLayers.length > 1 && guard++ < 64) {
+        const newest = worldLayers[worldLayers.length - 1];
+        const victim = worldLayers.find((l) => l.origin !== 'guest' && l !== newest)
+                    || worldLayers.find((l) => l !== newest);
+        if (!victim) break;
+        retireLayer(victim);
+      }
+    }
+
+    // The ledger is the visible proof that a guest's decree outlived their visit.
+    function renderDecreeLedger() {
+      const list = document.getElementById('decree-ledger');
+      const load = document.getElementById('ledger-load');
+      if (!list) return;
+
+      if (load) load.innerText = `${worldEntityCount()} / ${MAX_WORLD_ENTITIES}`;
+
+      if (worldLayers.length === 0) {
+        list.innerHTML = '<p class="text-[10px] text-slate-500 italic">City unmarked. Awaiting first decree.</p>';
+        return;
+      }
+
+      // Newest first — the decree a guest just made sits at the top of the list.
+      list.innerHTML = worldLayers.slice().reverse().map((l) => {
+        const when = new Date(l.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const isGuest = l.origin === 'guest';
+        const tag = isGuest ? 'GUEST' : 'AMBIENT';
+        const tagCls = isGuest
+          ? 'text-emerald-300 border-emerald-500/40 bg-emerald-950/40'
+          : 'text-slate-400 border-slate-600/40 bg-slate-900/40';
+        const text = (l.prompt || '(unspoken directive)').slice(0, 64);
+        return `<div class="flex items-start gap-1.5 leading-tight">
+            <span class="mt-0.5 w-1.5 h-1.5 rounded-full shrink-0" style="background:${l.color}"></span>
+            <span class="flex-1 min-w-0">
+              <span class="block text-[10px] text-slate-300 truncate" title="${escapeLedgerText(l.prompt)}">${escapeLedgerText(text)}</span>
+              <span class="text-[9px] px-1 rounded border ${tagCls}">${tag}</span>
+              <span class="text-[9px] text-slate-600 ml-1">${when} · ${l.entities.length} obj</span>
+            </span>
+          </div>`;
+      }).join('');
+    }
+
+    function escapeLedgerText(str) {
+      return String(str || '').replace(/[&<>"']/g, (c) => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+      ));
+    }
+
+    // Entity records name their root inconsistently (root/mesh/group) — normalise
+    // so the lifecycle code has one handle to work with.
+    function registerEntity(record) {
+      record.rootObject = record.root || record.mesh || record.group;
+      dynamicEntities.push(record);
+      const layer = activeDecreeGroup && activeDecreeGroup.userData.layer;
+      if (layer) layer.entities.push(record);
+      return record;
+    }
+
+    function spawnProceduralEntities(spawnConfig = {}) {
       const type = spawnConfig.type || 'none';
       const colorHex = spawnConfig.color || '#a855f7';
+
+      // A decree that summons nothing leaves the existing world standing.
+      if (type === 'none') return null;
+
+      // Each decree owns a layer, rotated into a fresh sector by the golden angle
+      // so successive guests spread around the city rather than stacking on
+      // identical plots and z-fighting.
+      const layer = {
+        id: ++decreeCounter,
+        group: new THREE.Group(),
+        entities: [],
+        prompt: spawnConfig.prompt || '',
+        origin: spawnConfig.origin || 'guest',
+        ts: Date.now(),
+        color: colorHex
+      };
+      layer.group.rotation.y = GOLDEN_ANGLE * layer.id;
+      layer.group.userData.layer = layer;
+      dynamicEntitiesGroup.add(layer.group);
+      worldLayers.push(layer);
+      activeDecreeGroup = layer.group;
 
       if (type === 'tentacles') {
         // 8 Serpentine Bioluminescent Tentacles rising from road junctions
@@ -1840,10 +1984,10 @@
           }
 
           rootGroup.scale.set(0.001, 0.001, 0.001);
-          dynamicEntitiesGroup.add(rootGroup);
+          activeDecreeGroup.add(rootGroup);
           gsap.to(rootGroup.scale, { x: 1, y: 1, z: 1, duration: 1.5, ease: "elastic.out(1, 0.5)" });
 
-          dynamicEntities.push({
+          registerEntity({
             type: 'tentacle',
             root: rootGroup,
             joints: joints,
@@ -1883,10 +2027,10 @@
           crystal.add(wire);
 
           crystal.scale.set(0.001, 0.001, 0.001);
-          dynamicEntitiesGroup.add(crystal);
+          activeDecreeGroup.add(crystal);
           gsap.to(crystal.scale, { x: 1, y: 1, z: 1, duration: 1.2, ease: "back.out(1.7)" });
 
-          dynamicEntities.push({
+          registerEntity({
             type: 'crystal',
             mesh: crystal,
             baseY: spot.y,
@@ -1910,10 +2054,10 @@
           ringMesh.rotation.y = r * 0.4;
 
           ringMesh.scale.set(0.001, 0.001, 0.001);
-          dynamicEntitiesGroup.add(ringMesh);
+          activeDecreeGroup.add(ringMesh);
           gsap.to(ringMesh.scale, { x: 1, y: 1, z: 1, duration: 1.8, ease: "power2.out" });
 
-          dynamicEntities.push({
+          registerEntity({
             type: 'ring',
             mesh: ringMesh,
             rotSpeedX: 0.005 * (r + 1),
@@ -1944,10 +2088,10 @@
         bhGroup.add(photonRing);
 
         bhGroup.scale.set(0.001, 0.001, 0.001);
-        dynamicEntitiesGroup.add(bhGroup);
+        activeDecreeGroup.add(bhGroup);
         gsap.to(bhGroup.scale, { x: 1, y: 1, z: 1, duration: 2.0, ease: "power3.out" });
 
-        dynamicEntities.push({
+        registerEntity({
           type: 'black_hole',
           group: bhGroup,
           disk: diskMesh,
@@ -1982,10 +2126,10 @@
           ufoGroup.add(beam);
 
           ufoGroup.scale.set(0.001, 0.001, 0.001);
-          dynamicEntitiesGroup.add(ufoGroup);
+          activeDecreeGroup.add(ufoGroup);
           gsap.to(ufoGroup.scale, { x: 1, y: 1, z: 1, duration: 1.4, ease: "back.out(1.5)" });
 
-          dynamicEntities.push({
+          registerEntity({
             type: 'ufo',
             group: ufoGroup,
             baseY: spot.y,
@@ -2006,10 +2150,10 @@
           pyrMesh.add(wire);
 
           pyrMesh.scale.set(0.001, 0.001, 0.001);
-          dynamicEntitiesGroup.add(pyrMesh);
+          activeDecreeGroup.add(pyrMesh);
           gsap.to(pyrMesh.scale, { x: 1, y: 1, z: 1, duration: 1.4, ease: "back.out(1.7)" });
 
-          dynamicEntities.push({
+          registerEntity({
             type: 'pyramid',
             mesh: pyrMesh,
             baseY: spot.y,
@@ -2017,6 +2161,10 @@
           });
         });
       }
+
+      enforceWorldBudget();
+      renderDecreeLedger();
+      return layer;
     }
 
     /* --------------------------------------------------------------------------
@@ -2361,7 +2509,10 @@
         updateUniversalCitizenRig(targetState.citizenModifier || targetState);
       }
       if (targetState.proceduralSpawn) {
-        spawnProceduralEntities(targetState.proceduralSpawn);
+        spawnProceduralEntities(Object.assign({}, targetState.proceduralSpawn, {
+          prompt: targetState.sourcePrompt || '',
+          origin: targetState.sourceOrigin || 'guest'
+        }));
       }
 
       // 9. Refresh Billboard Canvas
@@ -2966,7 +3117,7 @@ You must analyze this decree and output structured numerical values and zero-sho
     let autoStreamCountdown = 14;
     let isDecreeProcessing = false;
 
-    async function handleDecreeSubmission(promptText) {
+    async function handleDecreeSubmission(promptText, origin = 'guest') {
       if (!promptText || promptText.trim().length === 0 || isDecreeProcessing) return;
       isDecreeProcessing = true;
 
@@ -3021,7 +3172,9 @@ You must analyze this decree and output structured numerical values and zero-sho
         // Update and Pop-up Real-Time Cyber Telemetry & Vector Breakdown Decoder
         updateDebugPanel(promptText, result);
 
-        // Morph 3D metropolis parameters
+        // Morph 3D metropolis parameters, tagging the layer with who authored it
+        result.sourcePrompt = promptText;
+        result.sourceOrigin = origin;
         applyStateTransformation(result, 2.2);
       } catch (err) {
         console.error("Simulation error:", err);
@@ -3156,7 +3309,7 @@ You must analyze this decree and output structured numerical values and zero-sho
         guestPromptIndex++;
         
         decreeInput.value = nextPrompt;
-        handleDecreeSubmission(nextPrompt);
+        handleDecreeSubmission(nextPrompt, 'ambient');
       }
     }, 1000);
 
@@ -3306,6 +3459,7 @@ You must analyze this decree and output structured numerical values and zero-sho
       init3D();
       updateUIReadouts();
       updateAIStatusDisplay(Boolean(getStoredApiKey()));
+      renderDecreeLedger();
 
       // Initial welcoming decree animation after 0.5s
       setTimeout(() => {

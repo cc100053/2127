@@ -43,7 +43,22 @@
 
 ---
 
+### World Persistence
+- [x] Per-decree layers with golden-angle sector placement (no overlap between decrees)
+- [x] Density budget with ambient-first / guest-protected eviction
+- [x] Recursive GPU disposal on layer retire and on citizen wardrobe swaps
+- [x] Standing Decree Ledger HUD panel with GUEST / AMBIENT provenance
+
+---
+
 ## 2. Future Roadmap & Potential Enhancements
+- [ ] **Generative scene DSL**: replace the fixed 6-type `proceduralSpawn` enum with an
+      LLM-authored node tree (primitives + transforms + animators) interpreted client-side,
+      so guests can summon forms nobody pre-modelled. Keep the 6 hand-built spawns as the
+      validation-failure fallback. *(This is the main unlock for "the guest really changed it".)*
+- [ ] Widen world axes beyond nature/tech/order: weather, time-of-day, water level, density.
+- [ ] Word-boundary fixes in `localSemanticParser` — `ai` currently matches *rain/air/said*,
+      `hat` matches *that/what*, `ring` matches *during*. Default engine when no API key is set.
 - [ ] Three.js `EffectComposer` + `UnrealBloomPass` for optical lens bloom.
 - [ ] Live microphone audio waveform visualizer rendered directly onto the billboard during speech.
 - [ ] External `.glb` / Blender asset loader with Draco compression.
