@@ -90,6 +90,19 @@ The application is fully functional, verified, and running as a self-contained w
      that actually served the decree rather than assuming Flash.
    - Auth moved from `?key=` in the URL to the `x-goog-api-key` header.
 
+12. **DSL corrections forced by the first live Gemini test**:
+   - **`size` is now a bounding box for every primitive.** It previously mapped to per-prim
+     constructor args (cylinder = radiusTop/height/radiusBottom), but the model always means
+     [width, height, depth] — it does that correctly for `box` and assumes it everywhere.
+     A dragon body of [1.5,1.5,8] was becoming a squat 8-wide cone. Every primitive is now
+     authored to a 1x1x1 box and scaled by `size`, which also gives ellipsoids for free.
+   - **`composition` is a REQUIRED schema field.** As an optional field the model omitted it on
+     roughly half of identical prompts. "No form" is now expressed as `nodes: []`, which the
+     validator already rejects into the enum fallback.
+   - **`DSL_MAX_EXTENT` (20 units) fits the assembled form.** Clamping node size and `scale`
+     independently was insufficient: the first real dragon came back 32x51x30 in a 30-unit
+     city. `buildComposition` now measures the built group and derives a fitted scale.
+
 ---
 
 ## 3. Active Decisions & Conventions

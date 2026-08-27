@@ -70,8 +70,16 @@
       from ~5 primitives currently reads as abstract shapes rather than a creature. Needs
       iteration on the system-prompt exemplars (silhouette guidance, part counts) against
       real Gemini output with a live API key.
-- [ ] **End-to-end test with a real Gemini key**: the composition path has only been exercised
-      with hand-authored specs and a stubbed network. The model's actual output has not been seen.
+- [x] **End-to-end test with a real Gemini key** — done. Findings below.
+- [ ] **Latency is the blocking problem**: 2.5 Flash took 6.6-17.7s per decree (median ~13s).
+      2.5 Flash-Lite answered the same prompts in 1.5-3.2s and still composed. For a kiosk
+      where a guest is watching a progress bar, Lite should probably be the PRIMARY and Flash
+      the quality fallback — the inverse of the current MODEL_CHAIN order.
+- [ ] **Forms compose vertically**: the model builds creatures standing up along Y rather than
+      lying along Z, so a dragon reads as a totem. Needs system-prompt guidance on orientation
+      and worked exemplars.
+- [ ] **Model ignores `mirror`**: it emits duplicate left/right parts by hand instead, spending
+      node budget. Prompt should push harder on building one side.
 - [ ] **Cache guest decrees** in localStorage keyed by normalised prompt — exhibition visitors
       repeat each other heavily, so a 30-50% hit rate is realistic once traffic is real.
 - [ ] Widen world axes beyond nature/tech/order: weather, time-of-day, water level, density.
