@@ -43,6 +43,13 @@
 
 ---
 
+### Generative Scene DSL
+- [x] Primitive whitelist + node-tree interpreter (`buildComposition`)
+- [x] Hardened validator (`sanitizeComposition`) — 29 unit assertions, no eval of model output
+- [x] Bilateral `mirror` flag, 5 animators, anchor/count/radius placement
+- [x] Gemini system prompt + `responseSchema` extended with `composition`
+- [x] Graceful fallback to the 6 hand-built spawners on validation failure
+
 ### World Persistence
 - [x] Per-decree layers with golden-angle sector placement (no overlap between decrees)
 - [x] Density budget with ambient-first / guest-protected eviction
@@ -52,10 +59,12 @@
 ---
 
 ## 2. Future Roadmap & Potential Enhancements
-- [ ] **Generative scene DSL**: replace the fixed 6-type `proceduralSpawn` enum with an
-      LLM-authored node tree (primitives + transforms + animators) interpreted client-side,
-      so guests can summon forms nobody pre-modelled. Keep the 6 hand-built spawns as the
-      validation-failure fallback. *(This is the main unlock for "the guest really changed it".)*
+- [ ] **Art-direct composed forms**: the DSL interpreter is in and verified, but a form built
+      from ~5 primitives currently reads as abstract shapes rather than a creature. Needs
+      iteration on the system-prompt exemplars (silhouette guidance, part counts) against
+      real Gemini output with a live API key.
+- [ ] **End-to-end test with a real Gemini key**: the composition path has only been exercised
+      with hand-authored specs matching the schema. The model's actual output has not been seen.
 - [ ] Widen world axes beyond nature/tech/order: weather, time-of-day, water level, density.
 - [ ] Word-boundary fixes in `localSemanticParser` — `ai` currently matches *rain/air/said*,
       `hat` matches *that/what*, `ring` matches *during*. Default engine when no API key is set.

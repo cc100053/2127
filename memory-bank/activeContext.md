@@ -62,12 +62,34 @@ The application is fully functional, verified, and running as a self-contained w
    - Decree provenance flows `handleDecreeSubmission(prompt, origin)` →
      `targetState.sourcePrompt` / `sourceOrigin` → the layer record.
 
+10. **Generative Scene DSL (`sanitizeComposition` / `buildComposition`)**:
+   - The model no longer only picks from the 6-type `proceduralSpawn` enum. It can emit a
+     `composition` node tree — 1-14 parts from a primitive whitelist (box/sphere/cylinder/
+     cone/torus/torusKnot/plane/ring/icosa/octa/tetra), each with size/pos/rot/color/
+     emissive/opacity/metal, plus `mirror` for bilateral symmetry (wings, limbs, horns).
+   - `anchor` (ground/sky/center), `count` (1-6 copies ringing the city), `radius`, `scale`,
+     and an `animate` block (spin/bob/orbit/undulate/pulse) complete the form.
+   - **Strictly data — never eval model output.** `sanitizeComposition()` rejects structurally
+     broken specs, drops unknown primitives, clamps every number, validates hex colours, and
+     enforces `DSL_MAX_MESHES` (60) by reducing `count`. Failure returns null and the pipeline
+     falls back to the hand-built enum spawners, so a guest never sees nothing happen.
+   - Materials darken albedo to 0.32 and carry hue in emissive: the lighting rig is
+     deliberately super-luminous (ambient 0.65 + hemi 1.3 + sun 2.2 @ exposure 1.45) and a
+     mid-tone albedo saturates straight to white.
+
 ---
 
 ## 3. Active Decisions & Conventions
 - **Single-File Preference**: Currently maintained inside `index.html` for instant portability and zero-build kiosk execution.
 - **Parametric LERPs over Reloads**: All city transformations are done by lerping numeric values over 2.0–2.4s using GSAP.
 - **Dual Engine Standard**: Any new prompt feature or schema modification must be mirrored in both `queryGeminiSocietalAI` and `localSemanticParser`.
+  - **Documented exception — `composition`**: the scene DSL is Gemini-only by design. A keyword
+    parser cannot author novel form, so `localSemanticParser` continues to return enum
+    `proceduralSpawn` values and no `composition`. That path is exactly the DSL's own
+    validation-failure fallback, so behaviour stays coherent with no API key set.
+- **Never Evaluate Model Output**: composition specs are inert data run through
+  `sanitizeComposition()`. Do not add a DSL feature that requires eval, Function(), or
+  injecting model-supplied strings into the DOM — this runs unattended in a public space.
 - **The World Accumulates**: Never clear `dynamicEntitiesGroup` wholesale. Anything added
   to the scene at runtime must join a layer via `registerEntity()` and be released through
   `retireLayer()`, so lifetime and GPU disposal stay in one place.

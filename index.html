@@ -1806,6 +1806,204 @@
        Dynamic Procedural Entity Spawner (Zero-Shot Synthesis)
        -------------------------------------------------------------------------- */
     /* --------------------------------------------------------------------------
+       Generative Scene DSL
+       The model does not pick from a menu of pre-modelled objects — it describes a
+       FORM as a node tree, and this interpreter builds it. Strictly data: no code is
+       ever evaluated from a model response. Anything that fails validation falls back
+       to the hand-built spawners below, so a guest never sees nothing happen.
+       -------------------------------------------------------------------------- */
+
+    // three r128 — CapsuleGeometry does not exist in this build, do not add it.
+    const DSL_PRIMITIVES = {
+      box:      (v) => new THREE.BoxGeometry(v[0], v[1], v[2]),
+      sphere:   (v) => new THREE.SphereGeometry(v[0] * 0.5, 18, 14),
+      cylinder: (v) => new THREE.CylinderGeometry(v[0] * 0.5, v[2] * 0.5, v[1], 18),
+      cone:     (v) => new THREE.ConeGeometry(v[0] * 0.5, v[1], 18),
+      torus:    (v) => new THREE.TorusGeometry(v[0] * 0.5, Math.max(0.04, v[1] * 0.25), 14, 36),
+      torusKnot:(v) => new THREE.TorusKnotGeometry(v[0] * 0.5, Math.max(0.04, v[1] * 0.18), 72, 10),
+      plane:    (v) => new THREE.PlaneGeometry(v[0], v[1]),
+      ring:     (v) => new THREE.RingGeometry(v[0] * 0.3, v[0] * 0.5, 28),
+      icosa:    (v) => new THREE.IcosahedronGeometry(v[0] * 0.5, 0),
+      octa:     (v) => new THREE.OctahedronGeometry(v[0] * 0.5, 0),
+      tetra:    (v) => new THREE.TetrahedronGeometry(v[0] * 0.5, 0)
+    };
+    const DSL_ANIMATORS = ['none', 'spin', 'bob', 'orbit', 'undulate', 'pulse'];
+    const DSL_ANCHORS = { ground: 0.0, sky: 17.0, center: 3.0 };  // sky clears the HUD band
+    const DSL_MAX_NODES = 14;    // per form, before mirroring
+    const DSL_MAX_COPIES = 6;    // placements of the form around the city
+    const DSL_MAX_MESHES = 60;   // hard ceiling on total meshes the form may produce
+
+    const clampNum = (v, lo, hi, dflt) => {
+      const n = typeof v === 'number' ? v : parseFloat(v);
+      return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
+    };
+    const clampVec3 = (v, lo, hi, dflt) => {
+      const a = Array.isArray(v) ? v : [];
+      return [0, 1, 2].map((i) => clampNum(a[i], lo, hi, dflt[i]));
+    };
+    const safeHex = (c, dflt) =>
+      (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c.trim())) ? c.trim() : dflt;
+
+    // Reject rather than repair anything structurally wrong; clamp anything merely
+    // out of range. Returns null when the form is unusable.
+    function sanitizeComposition(raw) {
+      if (!raw || typeof raw !== 'object') return null;
+      if (!Array.isArray(raw.nodes) || raw.nodes.length === 0) return null;
+
+      const nodes = [];
+      for (const n of raw.nodes.slice(0, DSL_MAX_NODES)) {
+        if (!n || typeof n !== 'object') continue;
+        const prim = typeof n.prim === 'string' ? n.prim.trim() : '';
+        if (!DSL_PRIMITIVES[prim]) continue;               // unknown primitive: drop the node
+        nodes.push({
+          prim,
+          size: clampVec3(n.size, 0.05, 14, [1, 1, 1]),
+          pos:  clampVec3(n.pos, -14, 14, [0, 0, 0]),
+          rot:  clampVec3(n.rot, -360, 360, [0, 0, 0]),
+          color: safeHex(n.color, null),
+          emissive: clampNum(n.emissive, 0, 1, 0.22),
+          opacity: clampNum(n.opacity, 0.15, 1, 1),
+          metal: clampNum(n.metal, 0, 1, 0.4),
+          mirror: n.mirror === true
+        });
+      }
+      if (nodes.length === 0) return null;
+
+      const meshesPerCopy = nodes.reduce((n, d) => n + (d.mirror ? 2 : 1), 0);
+      let count = Math.round(clampNum(raw.count, 1, DSL_MAX_COPIES, 1));
+      while (count > 1 && meshesPerCopy * count > DSL_MAX_MESHES) count--;
+      if (meshesPerCopy * count > DSL_MAX_MESHES) return null;   // one copy is already too heavy
+
+      const anim = (raw.animate && typeof raw.animate === 'object') ? raw.animate : {};
+      const animType = DSL_ANIMATORS.includes(anim.type) ? anim.type : 'none';
+      const axis = ['x', 'y', 'z'].includes(anim.axis) ? anim.axis : 'y';
+
+      return {
+        name: String(raw.name || 'unnamed form').slice(0, 48),
+        anchor: Object.prototype.hasOwnProperty.call(DSL_ANCHORS, raw.anchor) ? raw.anchor : 'ground',
+        count,
+        radius: clampNum(raw.radius, 0, 16, 9),
+        scale: clampNum(raw.scale, 0.2, 4, 1),
+        nodes,
+        animate: {
+          type: animType,
+          speed: clampNum(anim.speed, 0.05, 4, 1),
+          amp: clampNum(anim.amp, 0, 3, 1),
+          axis
+        }
+      };
+    }
+
+    function buildCompositionMesh(node, fallbackColor) {
+      const geom = DSL_PRIMITIVES[node.prim](node.size);
+      const color = new THREE.Color(node.color || fallbackColor);
+      const flat = (node.prim === 'plane' || node.prim === 'ring');
+      // This rig is deliberately super-luminous (ambient 0.65 + hemi 1.3 + sun 2.2 at
+      // toneMappingExposure 1.45). A mid-tone albedo saturates straight to white and the
+      // model's colour choice is lost, so darken the base and carry the hue in emissive —
+      // which also matches the neon language of the rest of the city.
+      const mat = new THREE.MeshStandardMaterial({
+        color: color.clone().multiplyScalar(0.32),
+        emissive: color.clone().multiplyScalar(0.30 + node.emissive * 0.55),
+        emissiveIntensity: 1.0,
+        metalness: node.metal * 0.6,
+        roughness: 0.5,
+        transparent: node.opacity < 1,
+        opacity: node.opacity,
+        side: flat ? THREE.DoubleSide : THREE.FrontSide
+      });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.set(node.pos[0], node.pos[1], node.pos[2]);
+      mesh.rotation.set(
+        THREE.MathUtils.degToRad(node.rot[0]),
+        THREE.MathUtils.degToRad(node.rot[1]),
+        THREE.MathUtils.degToRad(node.rot[2])
+      );
+      mesh.castShadow = !flat;
+      return mesh;
+    }
+
+    // Places `count` copies of the form around the city and registers each one so the
+    // render loop animates it and the layer budget can retire it.
+    function buildComposition(spec, fallbackColor) {
+      const baseY = DSL_ANCHORS[spec.anchor];
+
+      for (let i = 0; i < spec.count; i++) {
+        const angle = (i / spec.count) * Math.PI * 2;
+        const radius = spec.count === 1 ? 0 : spec.radius;
+
+        const copyGroup = new THREE.Group();     // placement + entrance tween
+        const formGroup = new THREE.Group();     // the form itself; animators act here
+        copyGroup.add(formGroup);
+        copyGroup.position.set(Math.cos(angle) * radius, baseY, Math.sin(angle) * radius);
+        copyGroup.rotation.y = -angle;
+
+        const parts = [];
+        spec.nodes.forEach((node) => {
+          const mesh = buildCompositionMesh(node, fallbackColor);
+          formGroup.add(mesh);
+          parts.push(mesh);
+          if (node.mirror) {
+            const twin = buildCompositionMesh(node, fallbackColor);
+            twin.position.x *= -1;
+            twin.rotation.y *= -1;
+            twin.rotation.z *= -1;
+            formGroup.add(twin);
+            parts.push(twin);
+          }
+        });
+
+        copyGroup.scale.set(0.001, 0.001, 0.001);
+        activeDecreeGroup.add(copyGroup);
+        gsap.to(copyGroup.scale, {
+          x: spec.scale, y: spec.scale, z: spec.scale,
+          duration: 1.5, ease: "back.out(1.4)", delay: i * 0.09
+        });
+
+        registerEntity({
+          type: 'composed',
+          group: copyGroup,
+          form: formGroup,
+          parts,
+          anim: spec.animate,
+          baseY,
+          orbitRadius: radius,
+          phase: i * 0.7
+        });
+      }
+    }
+
+    function tickComposedEntity(ent, t) {
+      const a = ent.anim;
+      if (!a || a.type === 'none') return;
+      switch (a.type) {
+        case 'spin':
+          ent.form.rotation[a.axis] += 0.012 * a.speed;
+          break;
+        case 'bob':
+          ent.form.position.y = Math.sin(t * a.speed + ent.phase) * 0.9 * a.amp;
+          break;
+        case 'orbit': {
+          const ang = t * a.speed * 0.25 + ent.phase;
+          ent.group.position.x = Math.cos(ang) * ent.orbitRadius;
+          ent.group.position.z = Math.sin(ang) * ent.orbitRadius;
+          ent.group.rotation.y = -ang;
+          break;
+        }
+        case 'undulate':
+          ent.parts.forEach((m, i) => {
+            m.rotation.z = Math.sin(t * a.speed + ent.phase + i * 0.5) * 0.22 * a.amp;
+          });
+          break;
+        case 'pulse': {
+          const k = 1 + Math.sin(t * a.speed + ent.phase) * 0.11 * a.amp;
+          ent.form.scale.set(k, k, k);
+          break;
+        }
+      }
+    }
+
+    /* --------------------------------------------------------------------------
        World Accretion: layer lifecycle, GPU disposal, and the decree ledger
        -------------------------------------------------------------------------- */
 
@@ -1887,7 +2085,7 @@
             <span class="flex-1 min-w-0">
               <span class="block text-[10px] text-slate-300 truncate" title="${escapeLedgerText(l.prompt)}">${escapeLedgerText(text)}</span>
               <span class="text-[9px] px-1 rounded border ${tagCls}">${tag}</span>
-              <span class="text-[9px] text-slate-600 ml-1">${when} · ${l.entities.length} obj</span>
+              <span class="text-[9px] text-slate-600 ml-1">${when} · ${escapeLedgerText(l.form || '')} · ${l.entities.length} obj</span>
             </span>
           </div>`;
       }).join('');
@@ -1912,9 +2110,10 @@
     function spawnProceduralEntities(spawnConfig = {}) {
       const type = spawnConfig.type || 'none';
       const colorHex = spawnConfig.color || '#a855f7';
+      const composition = sanitizeComposition(spawnConfig.composition);
 
       // A decree that summons nothing leaves the existing world standing.
-      if (type === 'none') return null;
+      if (type === 'none' && !composition) return null;
 
       // Each decree owns a layer, rotated into a fresh sector by the golden angle
       // so successive guests spread around the city rather than stacking on
@@ -1926,7 +2125,8 @@
         prompt: spawnConfig.prompt || '',
         origin: spawnConfig.origin || 'guest',
         ts: Date.now(),
-        color: colorHex
+        color: colorHex,
+        form: composition ? composition.name : type
       };
       layer.group.rotation.y = GOLDEN_ANGLE * layer.id;
       layer.group.userData.layer = layer;
@@ -1934,7 +2134,10 @@
       worldLayers.push(layer);
       activeDecreeGroup = layer.group;
 
-      if (type === 'tentacles') {
+      if (composition) {
+        // Guest-authored form: interpret the model's node tree directly.
+        buildComposition(composition, colorHex);
+      } else if (type === 'tentacles') {
         // 8 Serpentine Bioluminescent Tentacles rising from road junctions
         const tentacleSpots = [
           { x: -7.5, z: -7.5 }, { x: 7.5, z: -7.5 },
@@ -2508,8 +2711,9 @@
       if (targetState.citizenModifier || targetState.anatomy || targetState.wardrobe || targetState.locomotion) {
         updateUniversalCitizenRig(targetState.citizenModifier || targetState);
       }
-      if (targetState.proceduralSpawn) {
-        spawnProceduralEntities(Object.assign({}, targetState.proceduralSpawn, {
+      if (targetState.proceduralSpawn || targetState.composition) {
+        spawnProceduralEntities(Object.assign({}, targetState.proceduralSpawn || {}, {
+          composition: targetState.composition || null,
           prompt: targetState.sourcePrompt || '',
           origin: targetState.sourceOrigin || 'guest'
         }));
@@ -2620,6 +2824,8 @@
         } else if (ent.type === 'pyramid') {
           ent.mesh.rotation.y += 0.015;
           ent.mesh.position.y = ent.baseY + Math.sin(elapsedTime * 1.5 + ent.phase) * 0.4;
+        } else if (ent.type === 'composed') {
+          tickComposedEntity(ent, elapsedTime);
         }
       });
 
@@ -2830,7 +3036,33 @@ You must analyze this decree and output structured numerical values and zero-sho
     - speedMultiplier: Number (0.3 to 3.0)
 - proceduralSpawn: Object with:
     - type: "none" | "tentacles" | "crystals" | "energy_rings"
-    - color: Hex color for the spawned procedural entity`;
+    - color: Hex color for the spawned procedural entity
+
+- composition: THE IMPORTANT ONE. If the decree names or implies any object, creature,
+  structure or phenomenon that is NOT covered by proceduralSpawn's fixed types, BUILD IT
+  YOURSELF here as a node tree. Do not force it into the nearest preset — compose it.
+  A dragon, a cathedral, a whale, a lighthouse, a broken statue, a mushroom forest, a
+  fleet of kites: all of these are compositions. Leave composition null ONLY when the
+  decree summons no object at all (a pure policy or mood change).
+    - name: Short label for the form, e.g. "sky-dragon"
+    - anchor: "ground" (sits on the city) | "sky" (floats above it) | "center" (the plaza)
+    - count: 1-6, how many copies ring the city. Use 1 for a singular landmark.
+    - radius: 0-16, how far from the centre the copies sit (ignored when count is 1)
+    - scale: 0.2-4 overall size multiplier
+    - nodes: 1-14 parts. Each part:
+        - prim: "box"|"sphere"|"cylinder"|"cone"|"torus"|"torusKnot"|"plane"|"ring"|"icosa"|"octa"|"tetra"
+        - size: [x, y, z] in world units (a city building is about 3 wide, 6 tall)
+        - pos: [x, y, z] offset from the form's own origin
+        - rot: [x, y, z] rotation in DEGREES
+        - color: Hex string; emissive: 0-1 glow; opacity: 0.15-1; metal: 0-1
+        - mirror: true to duplicate this part mirrored across the x axis — use it for
+          wings, limbs, horns, arms. Build only the RIGHT side and set mirror true.
+    - animate: { type: "none"|"spin"|"bob"|"orbit"|"undulate"|"pulse",
+                 speed: 0.05-4, amp: 0-3, axis: "x"|"y"|"z" }
+      Pick the motion the thing would really have: a dragon orbits, a jellyfish undulates,
+      a monolith spins slowly, a heart pulses, a lantern bobs.
+  Compose forms out of several parts with deliberate positions. A recognisable silhouette
+  matters far more than detail.`;
 
       const requestBody = {
         contents: [
@@ -2886,6 +3118,46 @@ You must analyze this decree and output structured numerical values and zero-sho
                   type: { type: "STRING", enum: ["none", "tentacles", "crystals", "energy_rings"] },
                   color: { type: "STRING" }
                 }
+              },
+              composition: {
+                type: "OBJECT",
+                description: "A form composed from primitives when no preset spawn fits",
+                properties: {
+                  name: { type: "STRING" },
+                  anchor: { type: "STRING", enum: ["ground", "sky", "center"] },
+                  count: { type: "NUMBER", description: "1-6 copies ringing the city" },
+                  radius: { type: "NUMBER", description: "0-16 distance from centre" },
+                  scale: { type: "NUMBER", description: "0.2-4 size multiplier" },
+                  nodes: {
+                    type: "ARRAY",
+                    description: "1-14 parts making up the form",
+                    items: {
+                      type: "OBJECT",
+                      properties: {
+                        prim: { type: "STRING", enum: ["box", "sphere", "cylinder", "cone", "torus", "torusKnot", "plane", "ring", "icosa", "octa", "tetra"] },
+                        size: { type: "ARRAY", items: { type: "NUMBER" } },
+                        pos: { type: "ARRAY", items: { type: "NUMBER" } },
+                        rot: { type: "ARRAY", items: { type: "NUMBER" }, description: "degrees" },
+                        color: { type: "STRING" },
+                        emissive: { type: "NUMBER" },
+                        opacity: { type: "NUMBER" },
+                        metal: { type: "NUMBER" },
+                        mirror: { type: "BOOLEAN" }
+                      },
+                      required: ["prim", "size", "pos"]
+                    }
+                  },
+                  animate: {
+                    type: "OBJECT",
+                    properties: {
+                      type: { type: "STRING", enum: ["none", "spin", "bob", "orbit", "undulate", "pulse"] },
+                      speed: { type: "NUMBER" },
+                      amp: { type: "NUMBER" },
+                      axis: { type: "STRING", enum: ["x", "y", "z"] }
+                    }
+                  }
+                },
+                required: ["name", "nodes"]
               }
             },
             required: ["natureLevel", "techLevel", "orderLevel", "headline", "dominantColor"]
@@ -2922,7 +3194,8 @@ You must analyze this decree and output structured numerical values and zero-sho
           anatomy: parsed.anatomy || { spinePitch: 0, heightScale: 1.0, widthScale: 1.0, hoverElevation: 0.0 },
           wardrobe: parsed.wardrobe || { primitive: "none", color: "#00f0ff" },
           locomotion: parsed.locomotion || { gaitType: "walk", speedMultiplier: 1.0 },
-          proceduralSpawn: parsed.proceduralSpawn || { type: 'none' }
+          proceduralSpawn: parsed.proceduralSpawn || { type: 'none' },
+          composition: parsed.composition || null
         };
       } catch (err) {
         console.error("Gemini invocation failed, falling back to local engine:", err);
@@ -3256,12 +3529,20 @@ You must analyze this decree and output structured numerical values and zero-sho
       const spd = loco.speedMultiplier !== undefined ? `${loco.speedMultiplier}x` : "1.0x";
       if (locomotionEl) locomotionEl.innerText = `${gait} (${spd} speed)`;
 
-      // 5. Spawner
+      // 5. Spawner — a composed form takes precedence over the preset spawners
       const spawn = state.proceduralSpawn || {};
       const sType = spawn.type || "none";
       const sColor = spawn.color || "#a855f7";
+      const composed = sanitizeComposition(state.composition);
       if (spawnerEl) {
-        spawnerEl.innerHTML = `<span style="color: ${sColor}; font-weight: bold;">${sType}</span>`;
+        if (composed) {
+          spawnerEl.innerHTML =
+            `<span style="color:${sColor};font-weight:bold;">${escapeLedgerText(composed.name)}</span>` +
+            `<span class="text-slate-500 font-normal"> · composed from ${composed.nodes.length} ` +
+            `part${composed.nodes.length === 1 ? '' : 's'} · x${composed.count}</span>`;
+        } else {
+          spawnerEl.innerHTML = `<span style="color: ${sColor}; font-weight: bold;">${sType}</span>`;
+        }
       }
 
       // 6. Mood
