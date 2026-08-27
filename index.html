@@ -260,6 +260,10 @@
         <span class="text-slate-400">Dynamic Spawner:</span>
         <span id="debug-spawner" class="text-yellow-400 font-bold">none</span>
       </div>
+      <div class="flex justify-between gap-2 py-0.5 border-b border-slate-900">
+        <span class="text-slate-400 shrink-0">City Edits:</span>
+        <span id="debug-ops" class="text-emerald-400 font-bold text-right">none</span>
+      </div>
       <div class="flex justify-between py-0.5">
         <span class="text-slate-400">Societal Mood:</span>
         <span id="debug-mood" class="font-bold text-slate-300">#00f0ff (50% / 50% / 50%)</span>
@@ -1820,6 +1824,211 @@
       octa:     () => new THREE.OctahedronGeometry(0.5, 0),
       tetra:    () => new THREE.TetrahedronGeometry(0.5, 0)
     };
+    /* --------------------------------------------------------------------------
+       Macro parts.
+
+       Authoring a dragon out of boxes and spheres asks the model to solve a
+       modelling problem it is bad at, and the measured result was ignored `mirror`
+       flags and mush silhouettes. A macro is a hand-tuned primitive cluster the
+       model places as ONE node, so its part budget buys recognisable anatomy
+       instead of geometry.
+
+       Every macro is authored inside a unit 1x1x1 box centred on the origin and
+       then scaled to the node's `size`, exactly like a primitive — so `size`
+       stays [width, height, depth] across the whole node vocabulary.
+
+       `bilateral: true` marks a part that only ever occurs in pairs. Those are
+       mirrored in CODE off the sign of pos.x, which is why the prompt no longer
+       asks the model to set `mirror` on them: it never did.
+       -------------------------------------------------------------------------- */
+    const macroMat = (color, emissive, opacity, metal, flat) => new THREE.MeshStandardMaterial({
+      color: color.clone().multiplyScalar(0.32),
+      emissive: color.clone().multiplyScalar(0.30 + emissive * 0.55),
+      emissiveIntensity: 1.0,
+      metalness: metal * 0.6,
+      roughness: 0.5,
+      transparent: opacity < 1,
+      opacity: opacity,
+      side: flat ? THREE.DoubleSide : THREE.FrontSide
+    });
+
+    const DSL_MACROS = {
+      // A leg or an arm: three tapering segments with a knee, hanging down from the
+      // attachment point at the top of the box.
+      limb: {
+        cost: 3, bilateral: true,
+        build: (mk) => {
+          const g = new THREE.Group();
+          const seg = [
+            { r0: 0.16, r1: 0.13, len: 0.40, y:  0.30, tilt:  0.10 },
+            { r0: 0.13, r1: 0.09, len: 0.38, y: -0.09, tilt: -0.22 },
+            { r0: 0.09, r1: 0.06, len: 0.30, y: -0.36, tilt:  0.14 }
+          ];
+          seg.forEach((sg) => {
+            const m = mk(new THREE.CylinderGeometry(sg.r0, sg.r1, sg.len, 10));
+            m.position.set(0, sg.y, 0);
+            m.rotation.x = sg.tilt;
+            g.add(m);
+          });
+          return g;
+        }
+      },
+      // A wing: swept membrane plus two spars, occupying the +X half only. The
+      // root edge sits at x=0 so the pair meets cleanly at the body.
+      wing: {
+        cost: 3, bilateral: true,
+        build: (mk, flatMk) => {
+          const g = new THREE.Group();
+          const membrane = flatMk(new THREE.PlaneGeometry(1, 1));
+          membrane.rotation.x = -Math.PI / 2;
+          membrane.rotation.z = -0.22;
+          membrane.position.set(0.5, 0.04, -0.06);
+          membrane.scale.set(1, 0.86, 1);
+          g.add(membrane);
+          [0.06, -0.26].forEach((zOff, i) => {
+            const spar = mk(new THREE.CylinderGeometry(0.035, 0.015, 1, 6));
+            spar.rotation.z = -Math.PI / 2;
+            spar.rotation.y = i === 0 ? 0.10 : -0.16;
+            spar.position.set(0.5, 0.06, zOff);
+            g.add(spar);
+          });
+          return g;
+        }
+      },
+      // A stabilising fin: one swept blade in the +X half.
+      fin: {
+        cost: 1, bilateral: true,
+        build: (mk, flatMk) => {
+          const g = new THREE.Group();
+          const blade = flatMk(new THREE.PlaneGeometry(1, 1));
+          blade.rotation.x = -Math.PI / 2;
+          blade.rotation.z = -0.38;
+          blade.position.set(0.5, 0, 0);
+          g.add(blade);
+          return g;
+        }
+      },
+      // A tapering tail running back along -Z from the origin.
+      tail: {
+        cost: 5, bilateral: false,
+        build: (mk) => {
+          const g = new THREE.Group();
+          for (let i = 0; i < 5; i++) {
+            const t0 = i / 5, t1 = (i + 1) / 5;
+            const m = mk(new THREE.CylinderGeometry(0.22 * (1 - t1), 0.22 * (1 - t0), 0.21, 9));
+            m.rotation.x = Math.PI / 2;
+            m.position.set(0, Math.sin(t0 * 2.2) * 0.06, -0.1 - t0 * 1.0);
+            g.add(m);
+          }
+          return g;
+        }
+      },
+      // A head: skull, snout along +Z, and two emissive eyes.
+      head: {
+        cost: 4, bilateral: false,
+        build: (mk, flatMk, glowMk) => {
+          const g = new THREE.Group();
+          const skull = mk(new THREE.SphereGeometry(0.5, 16, 12));
+          skull.scale.set(0.72, 0.66, 0.86);
+          g.add(skull);
+          const snout = mk(new THREE.ConeGeometry(0.24, 0.52, 12));
+          snout.rotation.x = Math.PI / 2;
+          snout.position.set(0, -0.06, 0.44);
+          g.add(snout);
+          [-1, 1].forEach((sx) => {
+            const eye = glowMk(new THREE.SphereGeometry(0.075, 8, 8));
+            eye.position.set(sx * 0.19, 0.11, 0.26);
+            g.add(eye);
+          });
+          return g;
+        }
+      },
+      // Anything that genuinely stands: a tapering tower with a tip.
+      spire: {
+        cost: 4, bilateral: false,
+        build: (mk) => {
+          const g = new THREE.Group();
+          const tiers = [
+            { r0: 0.34, r1: 0.26, len: 0.40, y: -0.30 },
+            { r0: 0.26, r1: 0.18, len: 0.36, y:  0.08 },
+            { r0: 0.18, r1: 0.11, len: 0.28, y:  0.40 }
+          ];
+          tiers.forEach((t) => {
+            const m = mk(new THREE.CylinderGeometry(t.r1, t.r0, t.len, 12));
+            m.position.y = t.y;
+            g.add(m);
+          });
+          const tip = mk(new THREE.ConeGeometry(0.11, 0.26, 12));
+          tip.position.y = 0.67;
+          g.add(tip);
+          return g;
+        }
+      },
+      // A gateway or a buttress: two legs under a curved span.
+      arch: {
+        cost: 4, bilateral: false,
+        build: (mk) => {
+          const g = new THREE.Group();
+          [-1, 1].forEach((sx) => {
+            const leg = mk(new THREE.CylinderGeometry(0.09, 0.11, 0.66, 10));
+            leg.position.set(sx * 0.38, -0.17, 0);
+            g.add(leg);
+          });
+          const span = mk(new THREE.TorusGeometry(0.38, 0.09, 10, 24, Math.PI));
+          span.position.y = 0.16;
+          g.add(span);
+          const key = mk(new THREE.BoxGeometry(0.16, 0.12, 0.2));
+          key.position.y = 0.5;
+          g.add(key);
+          return g;
+        }
+      },
+      // A tree, a mushroom, a lamp: a stem carrying a mass at the top.
+      trunk_canopy: {
+        cost: 4, bilateral: false,
+        build: (mk) => {
+          const g = new THREE.Group();
+          const trunk = mk(new THREE.CylinderGeometry(0.07, 0.12, 0.62, 9));
+          trunk.position.y = -0.19;
+          g.add(trunk);
+          [[0, 0.30, 0, 0.34], [-0.17, 0.19, 0.11, 0.24], [0.16, 0.21, -0.12, 0.26]].forEach((c) => {
+            const blob = mk(new THREE.IcosahedronGeometry(c[3], 1));
+            blob.position.set(c[0], c[1], c[2]);
+            g.add(blob);
+          });
+          return g;
+        }
+      },
+      // A serpent, whale or hull: a chain of masses running along Z, thick in the
+      // middle and tapering at both ends.
+      segment_body: {
+        cost: 6, bilateral: false,
+        build: (mk) => {
+          const g = new THREE.Group();
+          for (let i = 0; i < 6; i++) {
+            const t = i / 5;
+            const girth = 0.5 * Math.sin(Math.PI * (0.18 + t * 0.64));
+            const m = mk(new THREE.SphereGeometry(girth, 14, 10));
+            m.scale.set(1, 0.82, 1.15);
+            m.position.set(0, 0, -0.5 + t * 1.0);
+            g.add(m);
+          }
+          return g;
+        }
+      },
+      // A halo, an orbital ring, a portal: one flat ring around the origin.
+      ring_halo: {
+        cost: 1, bilateral: false,
+        build: (mk) => {
+          const g = new THREE.Group();
+          const r = mk(new THREE.TorusGeometry(0.42, 0.06, 12, 40));
+          r.rotation.x = Math.PI / 2;
+          g.add(r);
+          return g;
+        }
+      }
+    };
+
     const DSL_ANIMATORS = ['none', 'spin', 'bob', 'orbit', 'undulate', 'pulse'];
     const DSL_ANCHORS = { ground: 0.0, sky: 17.0, center: 3.0 };  // sky clears the HUD band
     const DSL_MAX_NODES = 20;    // per form, before mirroring
@@ -1848,23 +2057,35 @@
       const nodes = [];
       for (const n of raw.nodes.slice(0, DSL_MAX_NODES)) {
         if (!n || typeof n !== 'object') continue;
+
+        // A node is either a macro part or a raw primitive. `part` wins when both
+        // are present, since a macro is always the better silhouette.
+        const part = typeof n.part === 'string' ? n.part.trim() : '';
         const prim = typeof n.prim === 'string' ? n.prim.trim() : '';
-        if (!DSL_PRIMITIVES[prim]) continue;               // unknown primitive: drop the node
+        const macro = DSL_MACROS[part] || null;
+        if (!macro && !DSL_PRIMITIVES[prim]) continue;     // unknown node: drop it
+
+        const pos = clampVec3(n.pos, -14, 14, [0, 0, 0]);
         nodes.push({
-          prim,
+          part: macro ? part : null,
+          prim: macro ? null : prim,
+          cost: macro ? macro.cost : 1,
           size: clampVec3(n.size, 0.05, 14, [1, 1, 1]),
-          pos:  clampVec3(n.pos, -14, 14, [0, 0, 0]),
+          pos,
           rot:  clampVec3(n.rot, -360, 360, [0, 0, 0]),
           color: safeHex(n.color, null),
           emissive: clampNum(n.emissive, 0, 1, 0.22),
           opacity: clampNum(n.opacity, 0.15, 1, 1),
           metal: clampNum(n.metal, 0, 1, 0.4),
-          mirror: n.mirror === true
+          // A bilateral macro is paired in code off the sign of pos.x. The model
+          // was measured to ignore `mirror` entirely, so for those parts we stop
+          // asking and infer it; `mirror` still works for hand-built primitives.
+          mirror: (macro && macro.bilateral) ? Math.abs(pos[0]) > 0.001 : n.mirror === true
         });
       }
       if (nodes.length === 0) return null;
 
-      const meshesPerCopy = nodes.reduce((n, d) => n + (d.mirror ? 2 : 1), 0);
+      const meshesPerCopy = nodes.reduce((n, d) => n + d.cost * (d.mirror ? 2 : 1), 0);
       let count = Math.round(clampNum(raw.count, 1, DSL_MAX_COPIES, 1));
       while (count > 1 && meshesPerCopy * count > DSL_MAX_MESHES) count--;
       if (meshesPerCopy * count > DSL_MAX_MESHES) return null;   // one copy is already too heavy
@@ -1889,40 +2110,48 @@
       };
     }
 
-    function buildCompositionMesh(node, fallbackColor) {
-      const geom = DSL_PRIMITIVES[node.prim]();
+    // Returns an Object3D for one node: a Mesh for a primitive, a Group for a macro.
+    // Either way it is authored in a unit box and scaled to `size`, so callers can
+    // treat both kinds identically.
+    function buildCompositionNode(node, fallbackColor) {
       const color = new THREE.Color(node.color || fallbackColor);
-      const flat = (node.prim === 'plane' || node.prim === 'ring');
       // This rig is deliberately super-luminous (ambient 0.65 + hemi 1.3 + sun 2.2 at
       // toneMappingExposure 1.45). A mid-tone albedo saturates straight to white and the
       // model's colour choice is lost, so darken the base and carry the hue in emissive —
       // which also matches the neon language of the rest of the city.
-      const mat = new THREE.MeshStandardMaterial({
-        color: color.clone().multiplyScalar(0.32),
-        emissive: color.clone().multiplyScalar(0.30 + node.emissive * 0.55),
-        emissiveIntensity: 1.0,
-        metalness: node.metal * 0.6,
-        roughness: 0.5,
-        transparent: node.opacity < 1,
-        opacity: node.opacity,
-        side: flat ? THREE.DoubleSide : THREE.FrontSide
-      });
-      const mesh = new THREE.Mesh(geom, mat);
-      mesh.scale.set(node.size[0], node.size[1], node.size[2]);
-      mesh.position.set(node.pos[0], node.pos[1], node.pos[2]);
-      mesh.rotation.set(
+      const solid = () => macroMat(color, node.emissive, node.opacity, node.metal, false);
+      const flatM = () => macroMat(color, node.emissive, node.opacity, node.metal, true);
+
+      let obj;
+      if (node.part) {
+        // Three material factories: solid parts, double-sided membranes, and a
+        // fully-lit accent for details like eyes that must read at kiosk distance.
+        const mk = (geom) => { const m = new THREE.Mesh(geom, solid()); m.castShadow = true; return m; };
+        const flatMk = (geom) => new THREE.Mesh(geom, flatM());
+        const glowMk = (geom) => new THREE.Mesh(geom, new THREE.MeshBasicMaterial({ color }));
+        obj = DSL_MACROS[node.part].build(mk, flatMk, glowMk);
+      } else {
+        const flat = (node.prim === 'plane' || node.prim === 'ring');
+        obj = new THREE.Mesh(DSL_PRIMITIVES[node.prim](), flat ? flatM() : solid());
+        obj.castShadow = !flat;
+      }
+
+      obj.scale.set(node.size[0], node.size[1], node.size[2]);
+      obj.position.set(node.pos[0], node.pos[1], node.pos[2]);
+      obj.rotation.set(
         THREE.MathUtils.degToRad(node.rot[0]),
         THREE.MathUtils.degToRad(node.rot[1]),
         THREE.MathUtils.degToRad(node.rot[2])
       );
-      mesh.castShadow = !flat;
-      return mesh;
+      return obj;
     }
 
     // Places `count` copies of the form around the city and registers each one so the
     // render loop animates it and the layer budget can retire it.
-    function buildComposition(spec, fallbackColor) {
+    function buildComposition(spec, fallbackColor, opts = {}) {
       const baseY = DSL_ANCHORS[spec.anchor];
+      const offset = opts.offset || null;   // set when a form stands on a building's plot
+      const extraDelay = opts.delay || 0;
 
       for (let i = 0; i < spec.count; i++) {
         const angle = (i / spec.count) * Math.PI * 2;
@@ -1931,19 +2160,30 @@
         const copyGroup = new THREE.Group();     // placement + entrance tween
         const formGroup = new THREE.Group();     // the form itself; animators act here
         copyGroup.add(formGroup);
-        copyGroup.position.set(Math.cos(angle) * radius, baseY, Math.sin(angle) * radius);
+        copyGroup.position.set(
+          Math.cos(angle) * radius + (offset ? offset.x : 0),
+          baseY + (offset ? offset.y : 0),
+          Math.sin(angle) * radius + (offset ? offset.z : 0)
+        );
         copyGroup.rotation.y = -angle;
 
         const parts = [];
         spec.nodes.forEach((node) => {
-          const mesh = buildCompositionMesh(node, fallbackColor);
-          formGroup.add(mesh);
-          parts.push(mesh);
+          const obj = buildCompositionNode(node, fallbackColor);
+          formGroup.add(obj);
+          parts.push(obj);
           if (node.mirror) {
-            const twin = buildCompositionMesh(node, fallbackColor);
+            const twin = buildCompositionNode(node, fallbackColor);
             twin.position.x *= -1;
             twin.rotation.y *= -1;
             twin.rotation.z *= -1;
+            if (node.part) {
+              // A macro is authored one-handed (a wing fills the +X half), so the
+              // pair needs a real reflection, not just a translation. Negative scale
+              // reverses face winding, so the twin renders double-sided to compensate.
+              twin.scale.x *= -1;
+              twin.traverse((o) => { if (o.material) { o.material.side = THREE.DoubleSide; } });
+            }
             formGroup.add(twin);
             parts.push(twin);
           }
@@ -1962,7 +2202,7 @@
         activeDecreeGroup.add(copyGroup);
         gsap.to(copyGroup.scale, {
           x: fitScale, y: fitScale, z: fitScale,
-          duration: 1.5, ease: "back.out(1.4)", delay: i * 0.09
+          duration: 1.5, ease: "back.out(1.4)", delay: extraDelay + i * 0.09
         });
 
         registerEntity({
@@ -2009,6 +2249,326 @@
     }
 
     /* --------------------------------------------------------------------------
+       City edit ops.
+
+       Three societal scalars are a three-dimensional latent space, and every decree
+       ever spoken was being projected onto it. "Flood the streets", "grow fungus on
+       the towers" and "plant a forest" all landed on roughly the same city and then
+       got a decorative object parked beside it — the guest reads that as not being
+       understood, even when the model understood perfectly.
+
+       An op is a bounded edit against the city that is ALREADY STANDING, from a
+       closed vocabulary. Like everything else the model returns it is inert data:
+       validated, clamped, and dropped if unknown.
+
+       Ops are PERSISTENT. An op stays in force until a later decree issues an op of
+       the same kind, which matches the world-accretion rule the rest of the app
+       lives by — a guest's mark on the city outlives their visit. Because
+       applyStateTransformation() re-derives every building from the vectors on each
+       decree, overrides are re-asserted after it with overwrite:true.
+       -------------------------------------------------------------------------- */
+
+    // Surface presets. `emissive` is a multiplier on the mood colour, so a skin
+    // stays legible under whichever lighting mode the venue has selected.
+    const CITY_SKINS = {
+      concrete: { color: 0x6b6f76, rough: 0.92, metal: 0.05, emissive: 0.02 },
+      glass:    { color: 0x14304a, rough: 0.08, metal: 0.95, emissive: 0.18 },
+      chrome:   { color: 0xb8c4d0, rough: 0.05, metal: 1.00, emissive: 0.10 },
+      fungal:   { color: 0x4a5f3a, rough: 0.95, metal: 0.00, emissive: 0.14 },
+      coral:    { color: 0xd9736b, rough: 0.75, metal: 0.05, emissive: 0.22 },
+      wood:     { color: 0x6b4a2f, rough: 0.88, metal: 0.02, emissive: 0.04 },
+      rusted:   { color: 0x6e3a20, rough: 0.98, metal: 0.35, emissive: 0.03 },
+      bone:     { color: 0xd6cdb4, rough: 0.80, metal: 0.02, emissive: 0.08 },
+      crystal:  { color: 0x7fd4ff, rough: 0.02, metal: 0.55, emissive: 0.55 },
+      ash:      { color: 0x2a2724, rough: 0.99, metal: 0.02, emissive: 0.01 },
+      ice:      { color: 0xbfe6ff, rough: 0.12, metal: 0.30, emissive: 0.30 }
+    };
+
+    const GROUND_COVERS = {
+      asphalt: { color: 0x161c28, wire: 0x00f0ff, rough: 0.65 },
+      grass:   { color: 0x1f4a2a, wire: 0x00ff88, rough: 0.95 },
+      sand:    { color: 0x8a7448, wire: 0xffd27f, rough: 0.98 },
+      water:   { color: 0x0d3a55, wire: 0x22d3ee, rough: 0.10 },
+      ash:     { color: 0x24211f, wire: 0x8a5a3a, rough: 0.99 },
+      snow:    { color: 0xd7e6f0, wire: 0xbfe6ff, rough: 0.85 },
+      circuit: { color: 0x0a1420, wire: 0x00ffaa, rough: 0.30 },
+      lava:    { color: 0x3d1208, wire: 0xff6a1a, rough: 0.70 },
+      moss:    { color: 0x24382a, wire: 0x7bd67b, rough: 0.98 }
+    };
+
+    const CITY_OPS = ['retexture_buildings', 'set_building_height', 'tilt_buildings',
+                      'flood', 'ground_cover', 'set_sky', 'set_windows', 'replace_buildings'];
+
+    // What the city is currently holding, over and above the societal vectors.
+    // One slot per op kind: a new op of that kind supersedes the old one.
+    const cityOverrides = {
+      skin: null,      // { material, color }
+      height: null,    // { multiplier }
+      tilt: null,      // { degrees }
+      flood: null,     // { height, color, opacity }
+      ground: null,    // { material, color }
+      sky: null,       // { color, fogDensity }
+      windows: null    // { lit, color }
+    };
+    let floodPlane = null;
+
+    // Reject anything structurally wrong, clamp anything merely out of range,
+    // drop anything unrecognised. Returns [] rather than null so callers can
+    // iterate unconditionally.
+    function sanitizeCityOps(raw) {
+      if (!Array.isArray(raw)) return [];
+      const out = [];
+      const seen = new Set();
+
+      for (const o of raw.slice(0, 12)) {
+        if (!o || typeof o !== 'object') continue;
+        const op = typeof o.op === 'string' ? o.op.trim() : '';
+        if (!CITY_OPS.includes(op)) continue;
+        if (seen.has(op)) continue;          // one of each kind per decree; first wins
+        seen.add(op);
+
+        switch (op) {
+          case 'retexture_buildings': {
+            const material = CITY_SKINS[o.material] ? o.material : null;
+            if (!material) continue;
+            out.push({ op, material, color: safeHex(o.color, null) });
+            break;
+          }
+          case 'set_building_height':
+            out.push({ op, multiplier: clampNum(o.multiplier, 0.05, 4, 1) });
+            break;
+          case 'tilt_buildings':
+            out.push({ op, degrees: clampNum(o.degrees, 0, 45, 0) });
+            break;
+          case 'flood':
+            out.push({
+              op,
+              height: clampNum(o.height, 0, 9, 1.5),
+              color: safeHex(o.color, '#0d3a55'),
+              opacity: clampNum(o.opacity, 0.2, 0.95, 0.72)
+            });
+            break;
+          case 'ground_cover': {
+            const material = GROUND_COVERS[o.material] ? o.material : null;
+            if (!material) continue;
+            out.push({ op, material, color: safeHex(o.color, null) });
+            break;
+          }
+          case 'set_sky': {
+            const color = safeHex(o.color, null);
+            if (!color) continue;
+            out.push({ op, color, fogDensity: clampNum(o.fogDensity, 0, 0.08, 0.018) });
+            break;
+          }
+          case 'set_windows':
+            out.push({ op, lit: clampNum(o.lit, 0, 1, 0.8), color: safeHex(o.color, null) });
+            break;
+          case 'replace_buildings': {
+            // The dramatic one: swap part of the actual skyline for a composed form.
+            const composition = sanitizeComposition(o.composition);
+            if (!composition) continue;
+            out.push({ op, fraction: clampNum(o.fraction, 0.05, 1, 0.4), composition });
+            break;
+          }
+        }
+      }
+      return out;
+    }
+
+    // Records ops into cityOverrides, then asserts them. `replace_buildings` is the
+    // one op that produces geometry, so it goes through the normal layer lifecycle.
+    function applyCityOps(ops, moodHex, duration = 2.0, ctx = {}) {
+      if (!ops || ops.length === 0) return 0;
+      let applied = 0;
+
+      ops.forEach((o) => {
+        switch (o.op) {
+          case 'retexture_buildings': cityOverrides.skin = o; break;
+          case 'set_building_height': cityOverrides.height = o; break;
+          case 'tilt_buildings':      cityOverrides.tilt = o; break;
+          case 'flood':               cityOverrides.flood = o; break;
+          case 'ground_cover':        cityOverrides.ground = o; break;
+          case 'set_sky':             cityOverrides.sky = o; break;
+          case 'set_windows':         cityOverrides.windows = o; break;
+          case 'replace_buildings':   applyBuildingReplacement(o, moodHex, ctx); break;
+        }
+        applied++;
+      });
+
+      applyCityOverrides(duration);
+      return applied;
+    }
+
+    // Standing buildings, plaza-outward, so a partial replacement eats the skyline
+    // from the edges in and the centre stays legible.
+    function replaceableBuildings() {
+      return buildings
+        .filter((b) => !b.replaced)
+        .sort((a, b) => {
+          const da = a.originalPos.x * a.originalPos.x + a.originalPos.z * a.originalPos.z;
+          const db = b.originalPos.x * b.originalPos.x + b.originalPos.z * b.originalPos.z;
+          return db - da;
+        });
+    }
+
+    function applyBuildingReplacement(o, moodHex, ctx) {
+      const pool = replaceableBuildings();
+      const targetCount = Math.max(1, Math.round(pool.length * o.fraction));
+      // Every replacement mesh lands in one layer, so the whole swap is retired and
+      // GPU-freed together — and restores its buildings when it goes.
+      const victims = pool.slice(0, Math.min(targetCount, MAX_WORLD_ENTITIES));
+      if (victims.length === 0) return;
+
+      // One layer per decree: phase B opens it, and both the replacement forms and
+      // the free-standing composition land inside it. Opening a second one here
+      // would show the guest their single decree twice in the ledger.
+      const layer = ctx.layer || openDecreeLayer({
+        prompt: ctx.prompt || '',
+        origin: ctx.origin || 'guest',
+        color: moodHex,
+        form: ''
+      });
+      layer.form = [layer.form, `${o.composition.name} x${victims.length}`]
+        .filter(Boolean).join(' + ');
+      activeDecreeGroup = layer.group;
+
+      victims.forEach((b, i) => {
+        b.replaced = true;
+        gsap.to(b.mesh.scale, {
+          x: 0.001, y: 0.001, z: 0.001,
+          duration: 0.7, ease: "power3.in", overwrite: true, delay: i * 0.03
+        });
+        gsap.to(b.wireMat, { opacity: 0, duration: 0.5, overwrite: true });
+        gsap.to(b.ringMat, { opacity: 0, duration: 0.5, overwrite: true });
+        gsap.to(b.foliageGroup.scale, { x: 0.001, y: 0.001, z: 0.001, duration: 0.5, overwrite: true });
+
+        // The form stands on the building's own plot. The layer group carries a
+        // golden-angle rotation, so undo it here to keep the footprint on the grid.
+        const local = new THREE.Vector3(b.originalPos.x, 0, b.originalPos.z);
+        local.applyAxisAngle(new THREE.Vector3(0, 1, 0), -layer.group.rotation.y);
+
+        buildComposition(
+          Object.assign({}, o.composition, { count: 1, radius: 0, anchor: 'ground' }),
+          moodHex,
+          { offset: local, delay: 0.45 + i * 0.05 }
+        );
+      });
+
+      // Restoring the skyline is part of retiring the layer, not a separate concern.
+      registerEntity({
+        type: 'building-restore',
+        group: new THREE.Group(),
+        onRetire: () => {
+          victims.forEach((b) => {
+            b.replaced = false;
+            gsap.to(b.mesh.scale, { x: 1, y: 1, z: 1, duration: 1.2, ease: "back.out(1.4)", overwrite: true });
+          });
+          applyCityOverrides(1.2);
+        }
+      });
+
+      if (!ctx.layer) closeDecreeLayer();
+    }
+
+    // Re-asserts every standing override on top of whatever the societal vectors
+    // just tweened. overwrite:true is load-bearing — GSAP 3 lets competing tweens
+    // on the same property run concurrently otherwise, and the city flickers.
+    function applyCityOverrides(duration = 2.0) {
+      const ov = cityOverrides;
+
+      if (ov.skin) {
+        const skin = CITY_SKINS[ov.skin.material];
+        const c = new THREE.Color(ov.skin.color || skin.color);
+        const glow = c.clone().multiplyScalar(skin.emissive);
+        buildings.forEach((b) => {
+          if (b.replaced) return;
+          gsap.to(b.mat.color, { r: c.r, g: c.g, b: c.b, duration, overwrite: true });
+          gsap.to(b.mat.emissive, { r: glow.r, g: glow.g, b: glow.b, duration, overwrite: true });
+          gsap.to(b.mat, { roughness: skin.rough, metalness: skin.metal, duration, overwrite: true });
+        });
+      }
+
+      if (ov.height || ov.tilt) {
+        buildings.forEach((b) => {
+          if (b.replaced) return;
+          if (ov.height) {
+            gsap.to(b.mesh.scale, {
+              y: ov.height.multiplier, duration,
+              ease: "elastic.out(1, 0.75)", overwrite: true
+            });
+          }
+          if (ov.tilt) {
+            const rad = THREE.MathUtils.degToRad(ov.tilt.degrees);
+            // Deterministic per building, so a re-assert does not reshuffle the skyline.
+            const jitter = (seed) => (Math.sin(seed * 127.1) * 43758.5453) % 1;
+            gsap.to(b.mesh.rotation, {
+              x: rad * jitter(b.originalPos.x + b.originalPos.z),
+              z: rad * jitter(b.originalPos.x - b.originalPos.z + 7.3),
+              duration, ease: "power2.out", overwrite: true
+            });
+          }
+        });
+      }
+
+      if (ov.windows) {
+        const wc = ov.windows.color ? new THREE.Color(ov.windows.color) : null;
+        buildingWindows.forEach((wm) => {
+          gsap.to(wm, { opacity: ov.windows.lit, duration, overwrite: true });
+          if (wc) gsap.to(wm.color, { r: wc.r, g: wc.g, b: wc.b, duration, overwrite: true });
+        });
+      }
+
+      if (ov.ground) {
+        const cover = GROUND_COVERS[ov.ground.material];
+        const c = new THREE.Color(ov.ground.color || cover.color);
+        const wire = new THREE.Color(cover.wire);
+        groundTiles.forEach((t) => {
+          // Roads read a shade darker so the street grid survives any cover.
+          const tint = t.isRoad ? c.clone().multiplyScalar(0.62) : c;
+          gsap.to(t.mesh.material.color, { r: tint.r, g: tint.g, b: tint.b, duration, overwrite: true });
+          gsap.to(t.mesh.material, { roughness: cover.rough, duration, overwrite: true });
+          gsap.to(t.wireMat.color, { r: wire.r, g: wire.g, b: wire.b, duration, overwrite: true });
+        });
+      }
+
+      if (ov.sky) {
+        const c = new THREE.Color(ov.sky.color);
+        gsap.to(scene.background, { r: c.r, g: c.g, b: c.b, duration, overwrite: true });
+        gsap.to(scene.fog.color, { r: c.r, g: c.g, b: c.b, duration, overwrite: true });
+        gsap.to(scene.fog, { density: ov.sky.fogDensity, duration, overwrite: true });
+      }
+
+      applyFloodOverride(duration);
+    }
+
+    // One reused plane rather than a fresh mesh per decree — it is a property of the
+    // city, not of any one guest's layer, so it never enters the entity budget.
+    function applyFloodOverride(duration) {
+      const ov = cityOverrides.flood;
+      if (!ov) {
+        if (floodPlane) gsap.to(floodPlane.material, { opacity: 0, duration, overwrite: true });
+        return;
+      }
+
+      if (!floodPlane) {
+        const span = GRID_SIZE * TILE_SIZE * 1.12;   // just past the outer plots
+        const geom = new THREE.PlaneGeometry(span, span, 1, 1);
+        geom.rotateX(-Math.PI / 2);
+        floodPlane = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
+          color: 0x0d3a55, transparent: true, opacity: 0,
+          roughness: 0.06, metalness: 0.85, side: THREE.DoubleSide
+        }));
+        floodPlane.renderOrder = 2;
+        scene.add(floodPlane);
+      }
+
+      const c = new THREE.Color(ov.color);
+      gsap.to(floodPlane.position, { y: ov.height, duration, ease: "power2.inOut", overwrite: true });
+      gsap.to(floodPlane.material, { opacity: ov.opacity, duration, overwrite: true });
+      gsap.to(floodPlane.material.color, { r: c.r, g: c.g, b: c.b, duration, overwrite: true });
+    }
+
+    /* --------------------------------------------------------------------------
        World Accretion: layer lifecycle, GPU disposal, and the decree ledger
        -------------------------------------------------------------------------- */
 
@@ -2031,6 +2591,11 @@
       layer.entities.forEach((ent) => {
         const i = dynamicEntities.indexOf(ent);
         if (i !== -1) dynamicEntities.splice(i, 1);
+        // An op that edited the standing city registers its undo here, so the
+        // skyline comes back when its layer is evicted.
+        if (typeof ent.onRetire === 'function') {
+          try { ent.onRetire(); } catch (err) { console.warn('[2127] retire hook failed:', err); }
+        }
       });
 
       const finalize = () => {
@@ -2102,6 +2667,34 @@
       ));
     }
 
+    // Each decree owns a layer, rotated into a fresh sector by the golden angle so
+    // successive guests spread around the city rather than stacking on identical
+    // plots and z-fighting. Anything built between open and close joins it.
+    function openDecreeLayer(meta) {
+      const layer = {
+        id: ++decreeCounter,
+        group: new THREE.Group(),
+        entities: [],
+        prompt: meta.prompt || '',
+        origin: meta.origin || 'guest',
+        ts: Date.now(),
+        color: meta.color || '#a855f7',
+        form: meta.form || ''   // filled in by whatever builds into the layer
+      };
+      layer.group.rotation.y = GOLDEN_ANGLE * layer.id;
+      layer.group.userData.layer = layer;
+      dynamicEntitiesGroup.add(layer.group);
+      worldLayers.push(layer);
+      activeDecreeGroup = layer.group;
+      return layer;
+    }
+
+    function closeDecreeLayer() {
+      enforceWorldBudget();
+      renderDecreeLedger();
+      activeDecreeGroup = null;
+    }
+
     // Entity records name their root inconsistently (root/mesh/group) — normalise
     // so the lifecycle code has one handle to work with.
     function registerEntity(record) {
@@ -2120,23 +2713,14 @@
       // A decree that summons nothing leaves the existing world standing.
       if (type === 'none' && !composition) return null;
 
-      // Each decree owns a layer, rotated into a fresh sector by the golden angle
-      // so successive guests spread around the city rather than stacking on
-      // identical plots and z-fighting.
-      const layer = {
-        id: ++decreeCounter,
-        group: new THREE.Group(),
-        entities: [],
+      const layer = spawnConfig.layer || openDecreeLayer({
         prompt: spawnConfig.prompt || '',
         origin: spawnConfig.origin || 'guest',
-        ts: Date.now(),
         color: colorHex,
-        form: composition ? composition.name : type
-      };
-      layer.group.rotation.y = GOLDEN_ANGLE * layer.id;
-      layer.group.userData.layer = layer;
-      dynamicEntitiesGroup.add(layer.group);
-      worldLayers.push(layer);
+        form: ''
+      });
+      layer.form = [layer.form, composition ? composition.name : type]
+        .filter(Boolean).join(' + ');
       activeDecreeGroup = layer.group;
 
       if (composition) {
@@ -2370,8 +2954,7 @@
         });
       }
 
-      enforceWorldBudget();
-      renderDecreeLedger();
+      if (!spawnConfig.layer) closeDecreeLayer();
       return layer;
     }
 
@@ -2511,6 +3094,11 @@
       const survivorSet = new Set(sortedByCenterDist.slice(0, Math.max(0, survivalCount)));
 
       buildings.forEach((b) => {
+        // A plot handed to a replace_buildings op is out of the vectors' hands
+        // until that layer is retired; re-tweening it would pop the tower back up
+        // through the form now standing on it.
+        if (b.replaced) return;
+
         const isSurvivor = survivorSet.has(b);
 
         if (!isSurvivor) {
@@ -2724,7 +3312,12 @@
         }));
       }
 
-      // 9. Refresh Billboard Canvas
+      // 9. Re-assert standing city edits. The vector pass above just re-derived every
+      // building, tile and sky value from the three scalars, which would silently undo
+      // ops issued by earlier guests. Overrides persist, so they go on top.
+      applyCityOverrides(duration);
+
+      // 10. Refresh Billboard Canvas
       setBillboardHeadline(cityState.headline, cityState.dominantColor);
       document.getElementById('live-headline-preview').innerText = `"${cityState.headline}"`;
     }
@@ -3220,13 +3813,57 @@ You must analyze this decree and output structured numerical values and zero-sho
       if (!apiKey) return null;
 
       const systemPrompt = `You are the 2127 Central Societal AI. A citizen decree has already been
-resolved into societal parameters. Your only job now is to compose the physical FORM the decree
-summons into the metropolis, as a node tree.
+resolved into societal parameters. You now have two powers over the metropolis, and most
+decrees deserve both:
+
+  1. OPS — edit the city that is already standing.
+  2. COMPOSITION — build a new form the decree summons into it.
+
+Use ops whenever the decree is about the city itself: its surfaces, its height, its sky,
+its ground, its water. Use a composition whenever the decree names or implies a thing.
+"Drown the city in a red sea" is ops. "Summon a dragon" is a composition. "Turn every
+tower into a mushroom" is both: a ground_cover and a replace_buildings carrying the
+mushroom you composed. Returning ops on a decree that is about the city is what makes a
+guest believe they were understood — moving the societal sliders alone is not enough.
+
+===================== PART 1: OPS =====================
+An array, 0 to 6 entries, at most one of each kind. Every op PERSISTS until a later
+decree issues the same kind, so only emit an op you actually mean to leave standing.
+Omit the array entirely when the decree changes nothing about the existing city.
+
+  { "op": "retexture_buildings", "material": <skin>, "color": "#rrggbb" }
+      Resurfaces every tower. <skin> is one of: concrete, glass, chrome, fungal, coral,
+      wood, rusted, bone, crystal, ash, ice. 'color' is optional and overrides the
+      skin's own hue.
+  { "op": "set_building_height", "multiplier": 0.05-4 }
+      0.2 razes the skyline to stumps; 3 makes it a canyon of megatowers.
+  { "op": "tilt_buildings", "degrees": 0-45 }
+      Structural collapse, subsidence, an earthquake. 0 straightens the city back up.
+  { "op": "flood", "height": 0-9, "color": "#rrggbb", "opacity": 0.2-0.95 }
+      A water plane across the whole grid. A building is about 6 tall, so 1.5 is a
+      flooded street, 4 is a drowned district, 8 is a sunken city.
+  { "op": "ground_cover", "material": <cover>, "color": "#rrggbb" }
+      Resurfaces the ground. <cover> is one of: asphalt, grass, sand, water, ash, snow,
+      circuit, lava, moss.
+  { "op": "set_sky", "color": "#rrggbb", "fogDensity": 0-0.08 }
+      0.005 is clear air, 0.05 is choking smog.
+  { "op": "set_windows", "lit": 0-1, "color": "#rrggbb" }
+      0 is a blackout, 1 is every light burning.
+  { "op": "replace_buildings", "fraction": 0.05-1, "composition": { ... } }
+      The strongest edit available: tears down that fraction of the skyline and stands
+      a copy of the given composition on each emptied plot. Use it when the decree
+      transforms what the buildings ARE — into trees, mushrooms, statues, wreckage.
+      The composition here follows exactly the same rules as PART 2 below, but build
+      it at BUILDING scale: about 3 wide and 6 tall.
+
+===================== PART 2: COMPOSITION =====================
+Your job now is to compose the physical FORM the decree summons into the metropolis,
+as a node tree.
 
 If the decree names or implies any object, creature, structure or phenomenon, BUILD IT.
 A dragon, a cathedral, a whale, a lighthouse, a broken statue, a mushroom forest, a fleet
-of kites: all of these are forms you compose from primitives. A recognisable silhouette
-matters far more than detail.
+of kites: all of these are forms you compose. A recognisable silhouette matters far more
+than detail.
 
 AXES — read this before placing anything:
   +X is right, +Y is UP, +Z is FORWARD.
@@ -3238,10 +3875,27 @@ AXES — read this before placing anything:
   Cylinders and cones are built standing along Y. To lay one down so its length runs along
   Z, put the length in the y slot and set rot to [90, 0, 0].
 
-MIRROR — this is a hard rule:
-  NEVER emit two parts that are mirror images of each other. Build the +X side ONLY and set
-  "mirror": true on it; the left side is generated for you. Emitting both a left and a right
-  wing, arm, horn, fin or leg is WRONG and wastes half your part budget.
+PARTS — prefer these over raw primitives:
+  A node is either a macro 'part' (a ready-made anatomical cluster) or a raw 'prim'.
+  Reach for a part first: one part buys a recognisable feature that would cost you
+  five primitives to approximate badly.
+    - "limb"          a leg or arm, three jointed segments hanging DOWN from its box
+    - "wing"          a swept membrane with spars, filling the +X half of its box
+    - "fin"           a single swept blade, +X half of its box
+    - "tail"          a tapering tail running BACK along -Z
+    - "head"          skull, snout pointing +Z, two glowing eyes
+    - "spire"         a tapering tower with a tip, standing along +Y
+    - "arch"          two legs under a curved span
+    - "trunk_canopy"  a stem carrying a mass on top: tree, mushroom, lamp
+    - "segment_body"  a chain of masses along Z, thick amidships: serpent, whale, hull
+    - "ring_halo"     one flat ring around its origin
+  Raw prims remain available for anything the parts do not cover:
+  "box"|"sphere"|"cylinder"|"cone"|"torus"|"torusKnot"|"plane"|"ring"|"icosa"|"octa"|"tetra"
+
+PAIRS:
+  "limb", "wing" and "fin" come in pairs. Describe ONE of them, on the +X side
+  (a positive x in 'pos'), and the opposite side is built for you. Never write out
+  both a left and a right one — you would get four.
 
 FIELDS:
     - name: Short label for the form, e.g. "sky-dragon"
@@ -3250,50 +3904,97 @@ FIELDS:
     - radius: 0-16, how far from the centre the copies sit (ignored when count is 1)
     - scale: 0.2-4 overall size multiplier. The whole city is only 30 units across, so a
       form larger than about 18 units total will be shrunk to fit — build to real scale.
-    - nodes: 1-20 parts. Each part:
-        - prim: "box"|"sphere"|"cylinder"|"cone"|"torus"|"torusKnot"|"plane"|"ring"|"icosa"|"octa"|"tetra"
+    - nodes: 1-20 parts. Each node:
+        - part: one macro name from the list above, OR
+        - prim: one primitive name from the list above
         - size: [width, height, depth] BOUNDING BOX in world units (a city building is
-          about 3 wide, 6 tall). This is the bounding box for EVERY primitive, never
-          constructor arguments. Non-uniform sizes are encouraged: a sphere of [3,1,9] is
-          a long flat body, which is exactly what most creatures need.
+          about 3 wide, 6 tall). This is the bounding box for EVERY part and primitive,
+          never constructor arguments. Non-uniform sizes are encouraged: a segment_body
+          of [3,2,9] is a long low creature, which is what most animals need.
         - pos: [x, y, z] offset from the form's own origin
         - rot: [x, y, z] rotation in DEGREES
         - color: Hex string; emissive: 0-1 glow; opacity: 0.15-1; metal: 0-1
-        - mirror: true for the +X half of any bilateral part (see MIRROR above)
     - animate: { type: "none"|"spin"|"bob"|"orbit"|"undulate"|"pulse",
                  speed: 0.05-4, amp: 0-3, axis: "x"|"y"|"z" }
       Pick the motion the thing would really have: a dragon orbits, a jellyfish undulates,
       a monolith spins slowly, a heart pulses, a lantern bobs.
 
-WORKED EXAMPLE — study the proportions and the use of mirror:
+WORKED EXAMPLE — study how few nodes a whole animal takes:
 {
-  "name": "sky-ray", "anchor": "sky", "count": 3, "radius": 11, "scale": 1.0,
+  "name": "sky-dragon", "anchor": "sky", "count": 2, "radius": 12, "scale": 1.0,
   "nodes": [
-    { "prim": "sphere", "size": [3, 1.2, 9], "pos": [0, 0, 0], "rot": [0, 0, 0],
-      "color": "#7de3ff", "emissive": 0.5, "metal": 0.2 },
-    { "prim": "cone", "size": [1.6, 2.6, 1.6], "pos": [0, 0, 5.4], "rot": [90, 0, 0],
-      "color": "#7de3ff", "emissive": 0.6 },
-    { "prim": "plane", "size": [7, 0.1, 6], "pos": [3.4, 0.1, -0.5], "rot": [0, 0, 12],
-      "color": "#3fa9d6", "opacity": 0.75, "emissive": 0.4, "mirror": true },
-    { "prim": "cylinder", "size": [0.4, 7, 0.4], "pos": [0, 0, -6.5], "rot": [90, 0, 0],
-      "color": "#3fa9d6", "emissive": 0.3 }
+    { "part": "segment_body", "size": [2.6, 1.8, 9], "pos": [0, 0, 0], "rot": [0, 0, 0],
+      "color": "#ff6a3d", "emissive": 0.45, "metal": 0.3 },
+    { "part": "head", "size": [2.2, 2.0, 2.6], "pos": [0, 0.5, 5.2], "rot": [-8, 0, 0],
+      "color": "#ff8f5d", "emissive": 0.6 },
+    { "part": "tail", "size": [1.4, 1.4, 5], "pos": [0, 0, -4.4], "rot": [0, 0, 0],
+      "color": "#ff6a3d", "emissive": 0.4 },
+    { "part": "wing", "size": [6, 0.6, 5], "pos": [1.1, 0.7, 0.4], "rot": [0, 0, 14],
+      "color": "#ffb066", "emissive": 0.5, "opacity": 0.85 },
+    { "part": "limb", "size": [0.9, 2.2, 0.9], "pos": [1.0, -0.9, 1.8], "rot": [0, 0, 0],
+      "color": "#ff6a3d", "emissive": 0.3 }
   ],
   "animate": { "type": "orbit", "speed": 0.5, "amp": 1, "axis": "y" }
 }
-Why this works: the body is wide in x, LONG in z and flat in y, so the creature lies along
-its direction of travel instead of standing on end. Only the right wing is described and
-mirror makes the left. The nose cone and the tail cylinder are rotated 90 degrees about x
-so their lengths run along z. Four parts describe the whole animal.
+Why this works: five nodes describe a complete dragon. The body is LONG in z and low
+in y, so the creature lies along its direction of travel instead of standing on end.
+The wing and the limb are each written once, on the +X side, and their partners are
+built automatically. No primitive appears anywhere.
 
-The composition field is REQUIRED on every response. If the decree genuinely summons no
-object — a pure policy, mood or law with nothing to see — return it with an empty nodes
-array: { "name": "none", "nodes": [] }. Never omit the field.`;
+The composition field is REQUIRED on every response. If the decree summons no free-standing
+object — because it is a pure policy or mood, or because your ops already carry the whole
+change — return it with an empty nodes array: { "name": "none", "nodes": [] }. Never omit
+the field. The ops array is optional; omit it when nothing about the standing city changes.`;
 
       const context = `CITIZEN DECREE: "${decreePrompt}"
 RESOLVED CITY STATE: nature ${resolvedState.natureLevel.toFixed(2)}, tech ${resolvedState.techLevel.toFixed(2)}, order ${resolvedState.orderLevel.toFixed(2)}
 MOOD COLOUR: ${resolvedState.dominantColor}
 HEADLINE: ${resolvedState.headline}
 Compose a form that belongs in this city.`;
+
+      // Gemini response schemas have no $ref, so the composition shape is built once
+      // here and referenced twice: as the free-standing form, and as the thing a
+      // replace_buildings op stands on every emptied plot.
+      const compositionSchema = {
+        type: "OBJECT",
+        description: "A form composed from macro parts and primitives",
+        properties: {
+          name: { type: "STRING" },
+          anchor: { type: "STRING", enum: ["ground", "sky", "center"] },
+          count: { type: "NUMBER", description: "1-6 copies ringing the city" },
+          radius: { type: "NUMBER", description: "0-16 distance from centre" },
+          scale: { type: "NUMBER", description: "0.2-4 size multiplier" },
+          nodes: {
+            type: "ARRAY",
+            description: "1-20 nodes making up the form; prefer macro parts over prims",
+            items: {
+              type: "OBJECT",
+              properties: {
+                part: { type: "STRING", description: "Macro part; preferred over prim", enum: ["limb", "wing", "fin", "tail", "head", "spire", "arch", "trunk_canopy", "segment_body", "ring_halo"] },
+                prim: { type: "STRING", description: "Raw primitive; use only when no part fits", enum: ["box", "sphere", "cylinder", "cone", "torus", "torusKnot", "plane", "ring", "icosa", "octa", "tetra"] },
+                size: { type: "ARRAY", items: { type: "NUMBER" } },
+                pos: { type: "ARRAY", items: { type: "NUMBER" } },
+                rot: { type: "ARRAY", items: { type: "NUMBER" }, description: "degrees" },
+                color: { type: "STRING" },
+                emissive: { type: "NUMBER" },
+                opacity: { type: "NUMBER" },
+                metal: { type: "NUMBER" }
+              },
+              required: ["size", "pos"]
+            }
+          },
+          animate: {
+            type: "OBJECT",
+            properties: {
+              type: { type: "STRING", enum: ["none", "spin", "bob", "orbit", "undulate", "pulse"] },
+              speed: { type: "NUMBER" },
+              amp: { type: "NUMBER" },
+              axis: { type: "STRING", enum: ["x", "y", "z"] }
+            }
+          }
+        },
+        required: ["name", "nodes"]
+      };
 
       const requestBody = {
         contents: [{ parts: [{ text: context }] }],
@@ -3303,46 +4004,38 @@ Compose a form that belongs in this city.`;
           responseSchema: {
             type: "OBJECT",
             properties: {
-              composition: {
-                type: "OBJECT",
-                description: "A form composed from primitives when no preset spawn fits",
-                properties: {
-                  name: { type: "STRING" },
-                  anchor: { type: "STRING", enum: ["ground", "sky", "center"] },
-                  count: { type: "NUMBER", description: "1-6 copies ringing the city" },
-                  radius: { type: "NUMBER", description: "0-16 distance from centre" },
-                  scale: { type: "NUMBER", description: "0.2-4 size multiplier" },
-                  nodes: {
-                    type: "ARRAY",
-                    description: "1-14 parts making up the form",
-                    items: {
-                      type: "OBJECT",
-                      properties: {
-                        prim: { type: "STRING", enum: ["box", "sphere", "cylinder", "cone", "torus", "torusKnot", "plane", "ring", "icosa", "octa", "tetra"] },
-                        size: { type: "ARRAY", items: { type: "NUMBER" } },
-                        pos: { type: "ARRAY", items: { type: "NUMBER" } },
-                        rot: { type: "ARRAY", items: { type: "NUMBER" }, description: "degrees" },
-                        color: { type: "STRING" },
-                        emissive: { type: "NUMBER" },
-                        opacity: { type: "NUMBER" },
-                        metal: { type: "NUMBER" },
-                        mirror: { type: "BOOLEAN" }
-                      },
-                      required: ["prim", "size", "pos"]
-                    }
+              // One flat op object carrying every field, because a response schema
+              // cannot express a discriminated union. sanitizeCityOps() reads only
+              // the fields that belong to the op it was given and ignores the rest.
+              ops: {
+                type: "ARRAY",
+                description: "0-6 edits to the city already standing; at most one of each kind",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    op: {
+                      type: "STRING",
+                      enum: ["retexture_buildings", "set_building_height", "tilt_buildings",
+                             "flood", "ground_cover", "set_sky", "set_windows", "replace_buildings"]
+                    },
+                    material: {
+                      type: "STRING",
+                      description: "retexture_buildings: concrete|glass|chrome|fungal|coral|wood|rusted|bone|crystal|ash|ice — ground_cover: asphalt|grass|sand|water|ash|snow|circuit|lava|moss"
+                    },
+                    color: { type: "STRING", description: "Hex colour" },
+                    multiplier: { type: "NUMBER", description: "set_building_height: 0.05-4" },
+                    degrees: { type: "NUMBER", description: "tilt_buildings: 0-45" },
+                    height: { type: "NUMBER", description: "flood: 0-9 world units" },
+                    opacity: { type: "NUMBER", description: "flood: 0.2-0.95" },
+                    fogDensity: { type: "NUMBER", description: "set_sky: 0-0.08" },
+                    lit: { type: "NUMBER", description: "set_windows: 0-1" },
+                    fraction: { type: "NUMBER", description: "replace_buildings: 0.05-1 of the skyline" },
+                    composition: compositionSchema
                   },
-                  animate: {
-                    type: "OBJECT",
-                    properties: {
-                      type: { type: "STRING", enum: ["none", "spin", "bob", "orbit", "undulate", "pulse"] },
-                      speed: { type: "NUMBER" },
-                      amp: { type: "NUMBER" },
-                      axis: { type: "STRING", enum: ["x", "y", "z"] }
-                    }
-                  }
-                },
-                required: ["name", "nodes"]
-              }
+                  required: ["op"]
+                }
+              },
+              composition: compositionSchema
             },
             required: ["composition"]
           }
@@ -3351,23 +4044,91 @@ Compose a form that belongs in this city.`;
 
       const { parsed, servedBy } = await callModelChain(FORM_MODEL_CHAIN, requestBody, apiKey);
       if (!parsed) {
-        console.warn("[2127] Form phase unavailable — city keeps its vectors, no form spawned.");
+        console.warn("[2127] Form phase unavailable — city keeps its vectors, no edit or form.");
         return null;
       }
+
       // The "no form" convention is an object with empty nodes, which is truthy — validate
       // here so callers get a clean null and their preset fallback actually fires.
-      const composition = parsed.composition || null;
-      if (!sanitizeComposition(composition)) {
-        console.log(`[2127] ${servedBy} returned no usable form for this decree`);
+      const composition = sanitizeComposition(parsed.composition) ? parsed.composition : null;
+      const ops = sanitizeCityOps(parsed.ops);
+
+      if (!composition && ops.length === 0) {
+        console.log(`[2127] ${servedBy} returned no usable edit or form for this decree`);
         return null;
       }
-      console.log(`[2127] form composed by ${servedBy}`);
-      return composition;
+      console.log(`[2127] ${servedBy} returned ${ops.length} op(s)` +
+                  (composition ? ` and form "${composition.name}"` : ' and no form'));
+      return { composition, ops };
     }
 
     /* --------------------------------------------------------------------------
        Smart Local Semantic Parser (Guaranteed Offline / Zero-Shot Universal Reaction Fallback)
        -------------------------------------------------------------------------- */
+    // The scene DSL stays Gemini-only — a keyword parser cannot author novel form.
+    // Ops are different: a closed vocabulary of eight bounded edits is exactly what
+    // keyword matching CAN do, so the offline engine keeps the dual-engine standard
+    // for this half of phase B and a keyless kiosk still visibly rewrites its city.
+    function localCityOps(lower, moodHex) {
+      const ops = [];
+      const has = (...words) => words.some((w) => lower.includes(w));
+
+      const skin =
+        has('mushroom', 'fungus', 'fungal', 'spore', 'mycel') ? 'fungal' :
+        has('coral', 'reef')                                  ? 'coral' :
+        has('crystal', 'quartz', 'diamond', 'gem')            ? 'crystal' :
+        has('bone', 'skull', 'ossuar')                        ? 'bone' :
+        has('rust', 'corrod', 'decay', 'derelict')            ? 'rusted' :
+        has('wood', 'timber', 'bamboo')                       ? 'wood' :
+        has('chrome', 'steel', 'titanium', 'silver')          ? 'chrome' :
+        has('glass', 'transparent')                           ? 'glass' :
+        has('concrete', 'brutal')                             ? 'concrete' :
+        has('ice', 'frozen', 'glacier')                       ? 'ice' :
+        has('ash', 'burn', 'charred', 'cinder')               ? 'ash' : null;
+      if (skin) ops.push({ op: 'retexture_buildings', material: skin });
+
+      const cover =
+        has('grass', 'meadow', 'lawn', 'prairie')     ? 'grass' :
+        has('desert', 'sand', 'dune')                 ? 'sand' :
+        has('snow', 'frozen', 'ice age', 'tundra')    ? 'snow' :
+        has('lava', 'volcan', 'magma')                ? 'lava' :
+        has('moss', 'overgrown', 'jungle')            ? 'moss' :
+        has('circuit', 'datagrid', 'motherboard')     ? 'circuit' :
+        has('ash', 'wasteland', 'nuclear')            ? 'ash' : null;
+      if (cover) ops.push({ op: 'ground_cover', material: cover });
+
+      if (has('flood', 'drown', 'underwater', 'submerge', 'sea level', 'canal', 'ocean', 'tide')) {
+        const deep = has('drown', 'submerge', 'sunken', 'underwater');
+        ops.push({ op: 'flood', height: deep ? 5.5 : 1.6, color: '#0d3a55', opacity: 0.75 });
+      }
+
+      if (has('blackout', 'lights out', 'darkness', 'power cut', 'grid collapse')) {
+        ops.push({ op: 'set_windows', lit: 0.02 });
+      } else if (has('blazing', 'every light', 'illuminate', 'festival of light')) {
+        ops.push({ op: 'set_windows', lit: 1.0, color: moodHex });
+      }
+
+      if (has('earthquake', 'collapse', 'crumbl', 'subsid', 'ruin')) {
+        ops.push({ op: 'tilt_buildings', degrees: 22 });
+      }
+
+      if (has('megatower', 'skyward', 'taller', 'kilometre', 'kilometer', 'colossal')) {
+        ops.push({ op: 'set_building_height', multiplier: 2.6 });
+      } else if (has('flatten', 'raze', 'low-rise', 'demolish', 'level the city')) {
+        ops.push({ op: 'set_building_height', multiplier: 0.25 });
+      }
+
+      if (has('endless night', 'eternal night', 'blood sky', 'red sky', 'smog', 'toxic air')) {
+        ops.push({
+          op: 'set_sky',
+          color: has('blood', 'red') ? '#2a0808' : '#0a0d12',
+          fogDensity: has('smog', 'toxic') ? 0.05 : 0.02
+        });
+      }
+
+      return ops;
+    }
+
     function localSemanticParser(prompt) {
       const lower = prompt.toLowerCase();
       let nature = 0.5;
@@ -3518,7 +4279,8 @@ Compose a form that belongs in this city.`;
         anatomy: anatomy,
         wardrobe: wardrobe,
         locomotion: locomotion,
-        proceduralSpawn: proceduralSpawn
+        proceduralSpawn: proceduralSpawn,
+        ops: localCityOps(lower, color)
       };
     }
 
@@ -3625,35 +4387,61 @@ Compose a form that belongs in this city.`;
           spawnProceduralEntities(Object.assign({}, ps, { prompt: promptText, origin }));
         };
 
-        // Offline parser path: no key means no phase B, so honour its enum choice now.
+        // Offline parser path: no key means no phase B, so honour its keyword ops and
+        // enum spawn choice now.
         if (!getStoredApiKey()) {
+          applyCityOps(sanitizeCityOps(result.ops), result.dominantColor, 2.2,
+                       { prompt: promptText, origin });
           spawnPresetForm();
           return;
         }
 
-        // ---- Phase B: compose the form, which lands seconds later ----
-        setLoadingText('FORM MATERIALISING...', 'Synthesising procedural geometry');
+        // ---- Phase B: edit the standing city and compose the form ----
+        setLoadingText('REWRITING THE CITY...', 'Applying decree to standing structures');
         loadingOverlay.classList.remove('opacity-0');
 
-        const composition = await queryProceduralForm(promptText, result);
+        const phaseB = await queryProceduralForm(promptText, result);
 
         if (myTurn !== decreeSequence) {
-          console.log('[2127] form discarded — superseded by a newer decree');
+          console.log('[2127] phase B discarded — superseded by a newer decree');
           return;
         }
         loadingOverlay.classList.add('opacity-0');
 
-        if (composition) {
+        if (phaseB) {
           playSoundEffect('transmit');
-          spawnProceduralEntities({
-            type: 'none',
-            composition,
-            color: result.dominantColor,
-            prompt: promptText,
-            origin
-          });
-          updateDebugPanel(promptText, Object.assign({}, result, { composition }));
+          // One layer for the whole decree, shared by the building replacements and
+          // the free-standing form, so the ledger shows the guest one entry and the
+          // budget retires the entire decree together.
+          const buildsGeometry = phaseB.composition ||
+            phaseB.ops.some((o) => o.op === 'replace_buildings');
+          const layer = buildsGeometry ? openDecreeLayer({
+            prompt: promptText, origin, color: result.dominantColor, form: ''
+          }) : null;
+
+          // Ops first: they reshape the city the form is about to land in, and a
+          // replace_buildings needs its plots cleared before anything stands on them.
+          const opCount = applyCityOps(phaseB.ops, result.dominantColor, 2.2,
+                                       { prompt: promptText, origin, layer });
+          if (phaseB.composition) {
+            spawnProceduralEntities({
+              type: 'none',
+              composition: phaseB.composition,
+              color: result.dominantColor,
+              prompt: promptText,
+              origin,
+              layer
+            });
+          }
+          if (layer) closeDecreeLayer();
+          updateDebugPanel(promptText, Object.assign({}, result, {
+            composition: phaseB.composition, ops: phaseB.ops, opCount
+          }));
         } else {
+          // Phase B unreachable. Phase A may have fallen back to the local parser,
+          // which does author ops — honour them rather than dropping the edit.
+          applyCityOps(sanitizeCityOps(result.ops), result.dominantColor, 2.2,
+                       { prompt: promptText, origin });
           spawnPresetForm();
         }
       } catch (err) {
@@ -3711,7 +4499,12 @@ Compose a form that belongs in this city.`;
       if (promptEl) promptEl.innerText = `"${promptText}"`;
 
       // 1. Building Density
-      const bCount = (state.buildingCount !== undefined) ? `${state.buildingCount} / 28 Standing` : (state.buildingSurvivalRate !== undefined ? `${Math.round(state.buildingSurvivalRate * 100)}% Skyline` : "28 / 28 Standing (Full)");
+      // Count what is actually standing rather than quoting the schema back: a
+      // replace_buildings op takes plots out of the skyline too, not just demolition.
+      const replacedNow = buildings.filter((b) => b.replaced).length;
+      const standingNow = buildings.filter((b) => !b.replaced && b.mesh.scale.y > 0.01).length;
+      const bCount = `${standingNow} / ${buildings.length} Standing` +
+        (replacedNow ? ` (${replacedNow} replaced)` : '');
       if (bldgEl) bldgEl.innerText = bCount;
 
       // 2. Anatomy
@@ -3751,13 +4544,31 @@ Compose a form that belongs in this city.`;
         }
       }
 
-      // 6. Mood
+      // 6. City edit ops — the standing overrides, not just this decree's
+      const opsEl = document.getElementById('debug-ops');
+      if (opsEl) {
+        const issued = Array.isArray(state.ops) ? state.ops : [];
+        const standing = Object.entries(cityOverrides)
+          .filter(([, v]) => v !== null)
+          .map(([k, v]) => k + (v.material ? `:${v.material}` : ''));
+        if (issued.length === 0 && standing.length === 0) {
+          opsEl.innerHTML = '<span class="text-slate-600 font-normal">none</span>';
+        } else {
+          opsEl.innerHTML =
+            `${issued.length} issued` +
+            (standing.length
+              ? `<span class="text-slate-500 font-normal"> · standing: ${escapeLedgerText(standing.join(', '))}</span>`
+              : '');
+        }
+      }
+
+      // 7. Mood
       const naturePct = Math.round((state.natureLevel || 0.5) * 100);
       const techPct = Math.round((state.techLevel || 0.5) * 100);
       const orderPct = Math.round((state.orderLevel || 0.5) * 100);
       if (moodEl) moodEl.innerText = `${state.dominantColor || '#00f0ff'} (Bio: ${naturePct}%, Tech: ${techPct}%, Ord: ${orderPct}%)`;
 
-      // 7. Bizarre Concept Description
+      // 8. Bizarre Concept Description
       if (bizarreDesc) {
         bizarreDesc.innerText = `Synthesized universal mathematical vector with zero manual code changes. Rendered seamlessly via Three.js parametric matrices.`;
       }

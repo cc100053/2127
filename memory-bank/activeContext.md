@@ -137,17 +137,62 @@ The application is fully functional, verified, and running as a self-contained w
    - **`mirror` remains ignored** despite being stated as a hard rule. Mitigated in code by
      raising `DSL_MAX_NODES` to 20. Do not assume `mirror` will be used when budgeting nodes.
 
+16. **City Edit Ops (phase B, added 2026-08-27)**:
+   - Phase B now returns `{ composition, ops }`. `ops` is a closed vocabulary of eight
+     bounded edits against the city that is ALREADY STANDING: `retexture_buildings`,
+     `set_building_height`, `tilt_buildings`, `flood`, `ground_cover`, `set_sky`,
+     `set_windows`, `replace_buildings`.
+   - **Why**: three societal scalars are a 3-D latent space, and every decree was being
+     projected onto it. "Flood the streets", "grow fungus on the towers" and "plant a
+     forest" all landed on the same city plus a decorative object beside it. Ops widen
+     the channel between the guest's language and the metropolis.
+   - **Ops persist.** `cityOverrides` holds one slot per op kind; a later decree's op of
+     the same kind supersedes it. `applyStateTransformation()` re-derives everything from
+     the vectors, so `applyCityOverrides(duration)` runs at its end (step 9) to re-assert
+     them. Those tweens use `overwrite: true` — GSAP 3 otherwise runs competing tweens on
+     the same property concurrently and the city flickers.
+   - `replace_buildings` is the only op that makes geometry. It marks buildings
+     `b.replaced`, which `applyStateTransformation()` skips, and registers an `onRetire`
+     hook so evicting the layer restores the skyline. Capped at `MAX_WORLD_ENTITIES`.
+   - **Offline parity**: `localCityOps()` keyword-matches ops in `localSemanticParser`.
+     Ops are a closed enum, so unlike `composition` they do NOT need the Gemini-only
+     exception — a keyless kiosk still visibly rewrites its city.
+
+17. **Macro Parts in the Scene DSL (added 2026-08-27)**:
+   - A DSL node is now either a macro `part` or a raw `prim`. `DSL_MACROS` holds ten
+     hand-tuned primitive clusters: `limb`, `wing`, `fin`, `tail`, `head`, `spire`,
+     `arch`, `trunk_canopy`, `segment_body`, `ring_halo`. Each is authored in a unit box
+     and scaled to `size`, exactly like a primitive.
+   - **`mirror` is no longer asked of the model for anatomy.** Item 15 measured that it
+     ignores the flag entirely. `limb`/`wing`/`fin` are marked `bilateral` and are paired
+     in CODE off the sign of `pos.x`. A macro twin gets `scale.x *= -1` (a real
+     reflection, since macros are authored one-handed) plus `DoubleSide`, because negative
+     scale reverses face winding. `mirror` still works for hand-authored prims.
+   - Mesh budget now counts `node.cost * (mirror ? 2 : 1)` against `DSL_MAX_MESHES`.
+   - Verified with a stubbed `window.fetch`: a 5-node dragon builds 7 parts (body, head,
+     tail, wing x2, limb x2) with correct bilateral symmetry.
+
+18. **One Layer Per Decree, enforced (2026-08-27)**:
+   - `openDecreeLayer()` / `closeDecreeLayer()` are now explicit. `handleDecreeSubmission`
+     opens ONE layer for the whole of phase B and passes it to both `applyCityOps()` and
+     `spawnProceduralEntities()`, which append to `layer.form` rather than opening their
+     own. A first cut had `replace_buildings` open a second layer and the ledger showed a
+     single decree twice.
+
 ---
 
 ## 3. Active Decisions & Conventions
 - **Single-File Preference**: Currently maintained inside `index.html` for instant portability and zero-build kiosk execution.
 - **Parametric LERPs over Reloads**: All city transformations are done by lerping numeric values over 2.0–2.4s using GSAP.
 - **Dual Engine Standard**: Any new prompt feature or schema modification must be mirrored in both `queryGeminiSocietalAI` and `localSemanticParser`.
+  - **Ops are NOT an exception**: `localCityOps()` mirrors the op vocabulary offline.
   - **Documented exception — `composition`**: the scene DSL is Gemini-only by design. A keyword
     parser cannot author novel form, so `localSemanticParser` continues to return enum
     `proceduralSpawn` values and no `composition`. That path is exactly the DSL's own
     validation-failure fallback, so behaviour stays coherent with no API key set.
-- **One Layer Per Decree**: phase A transforms, phase B spawns. Never let both spawn.
+- **One Layer Per Decree**: phase A transforms, phase B edits and spawns. Never let both
+  spawn, and never let ops and the composition open separate layers — `handleDecreeSubmission`
+  owns the layer and passes it down.
 - **Ask Before Live API Calls**: the key is on a free tier. Stub `window.fetch` to exercise
   code paths offline; only spend real calls with the user's explicit go-ahead.
 - **No Idle API Traffic**: nothing may call the model unless a guest acted. Any future

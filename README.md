@@ -35,8 +35,13 @@ Guests input text decrees or voice statements describing their vision or law for
 - **Persistent World Accretion**:
   - Decrees layer onto the city instead of erasing it — the world carries the marks of every guest who came before.
   - A `STANDING DECREES` ledger shows what the city is still holding, and from whom.
-- **Generative Scene DSL**:
-  - When no preset spawn fits a decree, the model composes the form itself from a primitive node tree, with bilateral `mirror` symmetry and five animators.
+- **City Edit Ops — the decree rewrites the city that is already standing**:
+  - Beyond the three societal sliders, a decree issues bounded edits against the existing metropolis: `retexture_buildings` (11 skins from fungal to crystal to rusted), `set_building_height`, `tilt_buildings`, `flood`, `ground_cover` (9 covers), `set_sky`, `set_windows`, and `replace_buildings` — which tears down a fraction of the skyline and stands a model-composed form on every emptied plot.
+  - **Ops persist.** Each kind holds one slot until a later decree supersedes it, so the city a visitor walks into still wears the marks of everyone before them. Retiring a layer restores the skyline it replaced.
+  - Offline parity: a keyless kiosk keyword-matches the same op vocabulary, so it still visibly rewrites its city.
+- **Generative Scene DSL with Macro Parts**:
+  - When a decree summons a thing, the model composes it from a node tree of ten anatomical macro parts — `limb`, `wing`, `fin`, `tail`, `head`, `spire`, `arch`, `trunk_canopy`, `segment_body`, `ring_halo` — falling back to eleven raw primitives for anything they do not cover. Five nodes describe a whole dragon.
+  - Bilateral parts are paired in code off the sign of their x offset, so symmetry never depends on the model remembering to ask for it.
   - Strictly data — model output is never evaluated. A hardened validator clamps, drops or rejects anything malformed and falls back to the hand-built spawners.
 - **Layered AI Engine with Graceful Degradation**:
   - `gemini-2.5-flash` first, using strict structured-output response schemas.
