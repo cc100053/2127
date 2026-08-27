@@ -6,7 +6,7 @@
   <title>2127 World Shaper // 3D Societal Simulation Prototype</title>
   
   <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="vendor/tailwind.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -38,18 +38,17 @@
     }
   </script>
 
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <!-- Fonts — vendored (Chakra Petch, Orbitron, Rajdhani; SIL Open Font License) -->
+  <link href="vendor/fonts/fonts.css" rel="stylesheet">
 
   <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="vendor/lucide.js"></script>
 
-  <!-- Three.js and GSAP via CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <!-- Three.js and GSAP — vendored locally so the installation never depends on
+       venue wifi or an upstream CDN. See vendor/README.md for versions/provenance. -->
+  <script src="vendor/three.min.js"></script>
+  <script src="vendor/OrbitControls.js"></script>
+  <script src="vendor/gsap.min.js"></script>
 
   <style>
     body, html {
@@ -388,8 +387,8 @@
     <div class="cyber-panel px-6 py-4 rounded-xl flex items-center space-x-3 border-cyber-cyan shadow-[0_0_30px_rgba(0,240,255,0.4)]">
       <div class="w-6 h-6 border-2 border-cyber-cyan border-t-transparent rounded-full animate-spin"></div>
       <div class="font-mono text-sm">
-        <div class="font-cyber font-bold text-cyber-cyan tracking-wider">GEMINI 2.5 RE-COMPUTING METROPOLIS...</div>
-        <div class="text-[11px] text-slate-400">Morphing procedural geometry & ecological parameters</div>
+        <div id="loading-title" class="font-cyber font-bold text-cyber-cyan tracking-wider">GEMINI 2.5 RE-COMPUTING METROPOLIS...</div>
+        <div id="loading-sub" class="text-[11px] text-slate-400">Morphing procedural geometry &amp; ecological parameters</div>
       </div>
     </div>
   </div>
@@ -2950,8 +2949,11 @@
        ========================================================================== */
     const GEMINI_API_STORAGE_KEY = '2127_GEMINI_API_KEY';
 
-    // Primary model, then the cheaper/higher-quota fallback. Tried in order.
-    const MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+    // Phase A (societal vectors + headline) runs on the fast model so the city reacts in
+    // ~2s. Phase B (the composed form) keeps Flash primary, where the quality matters.
+    const VECTOR_MODEL_CHAIN = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+    const FORM_MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+    const MODEL_CHAIN = FORM_MODEL_CHAIN;   // retained for existing references
     let envConfig = {};
     let lastEngineLabel = 'GEMINI 2.5 FLASH';
 
@@ -3045,6 +3047,42 @@
     /* --------------------------------------------------------------------------
        LLM Inference with Gemini 2.5 Flash Structured JSON Output
        -------------------------------------------------------------------------- */
+    // Walk a model chain in order, returning the first parsed payload. 429/5xx/network
+    // errors advance to the next model; 400/401/403 stop the chain because a malformed
+    // request or bad key fails identically on every model.
+    async function callModelChain(chain, requestBody, apiKey) {
+      for (const model of chain) {
+        const endpoint =
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+        try {
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+            body: JSON.stringify(requestBody)
+          });
+
+          if (!response.ok) {
+            const errText = await response.text();
+            console.warn(`[2127] ${model} responded ${response.status}:`, errText.slice(0, 400));
+            if ([400, 401, 403].includes(response.status)) break;
+            continue;
+          }
+
+          const data = await response.json();
+          const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (!candidate) {
+            console.warn(`[2127] ${model} returned no text payload`);
+            continue;
+          }
+          return { parsed: JSON.parse(candidate), servedBy: model };
+        } catch (err) {
+          console.warn(`[2127] ${model} invocation failed:`, err);
+          continue;
+        }
+      }
+      return { parsed: null, servedBy: null };
+    }
+
     async function queryGeminiSocietalAI(decreePrompt) {
       const apiKey = getStoredApiKey();
 
@@ -3075,39 +3113,7 @@ You must analyze this decree and output structured numerical values and zero-sho
     - speedMultiplier: Number (0.3 to 3.0)
 - proceduralSpawn: Object with:
     - type: "none" | "tentacles" | "crystals" | "energy_rings"
-    - color: Hex color for the spawned procedural entity
-
-- composition: THE IMPORTANT ONE. If the decree names or implies any object, creature,
-  structure or phenomenon that is NOT covered by proceduralSpawn's fixed types, BUILD IT
-  YOURSELF here as a node tree. Do not force it into the nearest preset — compose it.
-  A dragon, a cathedral, a whale, a lighthouse, a broken statue, a mushroom forest, a
-  fleet of kites: all of these are compositions. Leave composition null ONLY when the
-  decree summons no object at all (a pure policy or mood change).
-    - name: Short label for the form, e.g. "sky-dragon"
-    - anchor: "ground" (sits on the city) | "sky" (floats above it) | "center" (the plaza)
-    - count: 1-6, how many copies ring the city. Use 1 for a singular landmark.
-    - radius: 0-16, how far from the centre the copies sit (ignored when count is 1)
-    - scale: 0.2-4 overall size multiplier
-    - nodes: 1-14 parts. Each part:
-        - prim: "box"|"sphere"|"cylinder"|"cone"|"torus"|"torusKnot"|"plane"|"ring"|"icosa"|"octa"|"tetra"
-        - size: [width, height, depth] bounding box in world units (a city building is
-          about 3 wide, 6 tall). This is the bounding box for EVERY primitive, not
-          constructor arguments. Cylinders and cones stand upright along Y — give the
-          length in the y slot and rotate the part to lay it down.
-        - pos: [x, y, z] offset from the form's own origin
-        - rot: [x, y, z] rotation in DEGREES
-        - color: Hex string; emissive: 0-1 glow; opacity: 0.15-1; metal: 0-1
-        - mirror: true to duplicate this part mirrored across the x axis — use it for
-          wings, limbs, horns, arms. Build only the RIGHT side and set mirror true.
-    - animate: { type: "none"|"spin"|"bob"|"orbit"|"undulate"|"pulse",
-                 speed: 0.05-4, amp: 0-3, axis: "x"|"y"|"z" }
-      Pick the motion the thing would really have: a dragon orbits, a jellyfish undulates,
-      a monolith spins slowly, a heart pulses, a lantern bobs.
-  Compose forms out of several parts with deliberate positions. A recognisable silhouette
-  matters far more than detail.
-  The composition field is REQUIRED on every response. If the decree genuinely summons no object —
-  a pure policy, mood or law with nothing to see — return it with an empty nodes array:
-  { "name": "none", "nodes": [] }. Never omit the field.`;
+    - color: Hex color for the spawned procedural entity`;
 
       const requestBody = {
         contents: [
@@ -3163,7 +3169,107 @@ You must analyze this decree and output structured numerical values and zero-sho
                   type: { type: "STRING", enum: ["none", "tentacles", "crystals", "energy_rings"] },
                   color: { type: "STRING" }
                 }
-              },
+              }
+            },
+            required: ["natureLevel", "techLevel", "orderLevel", "headline", "dominantColor"]
+          }
+        }
+      };
+
+      const { parsed, servedBy } = await callModelChain(VECTOR_MODEL_CHAIN, requestBody, apiKey);
+
+      if (!parsed) {
+        console.warn("[2127] All Gemini models unavailable — falling back to local parser.");
+        lastEngineLabel = 'LOCAL // MODELS UNAVAILABLE';
+        updateAIStatusDisplay(true);
+        return localSemanticParser(decreePrompt);
+      }
+
+      lastEngineLabel = servedBy.toUpperCase().replace(/-/g, ' ');
+      updateAIStatusDisplay(true);
+
+      try {
+        return {
+          natureLevel: Math.max(0, Math.min(1, parsed.natureLevel ?? 0.5)),
+          techLevel: Math.max(0, Math.min(1, parsed.techLevel ?? 0.5)),
+          orderLevel: Math.max(0, Math.min(1, parsed.orderLevel ?? 0.5)),
+          headline: parsed.headline || "CENTRAL AI UPDATES 2127 CITY DIRECTIVE",
+          dominantColor: parsed.dominantColor || "#00f0ff",
+          buildingCount: parsed.buildingCount,
+          buildingSurvivalRate: parsed.buildingSurvivalRate,
+          anatomy: parsed.anatomy || { spinePitch: 0, heightScale: 1.0, widthScale: 1.0, hoverElevation: 0.0 },
+          wardrobe: parsed.wardrobe || { primitive: "none", color: "#00f0ff" },
+          locomotion: parsed.locomotion || { gaitType: "walk", speedMultiplier: 1.0 },
+          proceduralSpawn: parsed.proceduralSpawn || { type: 'none' }
+        };
+      } catch (err) {
+        console.error("[2127] Malformed model payload, falling back to local engine:", err);
+        return localSemanticParser(decreePrompt);
+      }
+    }
+
+
+    /* --------------------------------------------------------------------------
+       Phase B — Procedural Form
+       Split out from the societal vectors deliberately. Phase A answers in ~2s on
+       Flash-Lite so the city starts reacting immediately; this call takes the slower,
+       stronger model and the form materialises into an already-transformed city.
+       -------------------------------------------------------------------------- */
+    async function queryProceduralForm(decreePrompt, resolvedState) {
+      const apiKey = getStoredApiKey();
+      if (!apiKey) return null;
+
+      const systemPrompt = `You are the 2127 Central Societal AI. A citizen decree has already been
+resolved into societal parameters. Your only job now is to compose the physical FORM the decree
+summons into the metropolis, as a node tree.
+
+- composition: THE IMPORTANT ONE. If the decree names or implies any object, creature,
+  structure or phenomenon that is NOT covered by proceduralSpawn's fixed types, BUILD IT
+  YOURSELF here as a node tree. Do not force it into the nearest preset — compose it.
+  A dragon, a cathedral, a whale, a lighthouse, a broken statue, a mushroom forest, a
+  fleet of kites: all of these are compositions. Leave composition null ONLY when the
+  decree summons no object at all (a pure policy or mood change).
+    - name: Short label for the form, e.g. "sky-dragon"
+    - anchor: "ground" (sits on the city) | "sky" (floats above it) | "center" (the plaza)
+    - count: 1-6, how many copies ring the city. Use 1 for a singular landmark.
+    - radius: 0-16, how far from the centre the copies sit (ignored when count is 1)
+    - scale: 0.2-4 overall size multiplier
+    - nodes: 1-14 parts. Each part:
+        - prim: "box"|"sphere"|"cylinder"|"cone"|"torus"|"torusKnot"|"plane"|"ring"|"icosa"|"octa"|"tetra"
+        - size: [width, height, depth] bounding box in world units (a city building is
+          about 3 wide, 6 tall). This is the bounding box for EVERY primitive, not
+          constructor arguments. Cylinders and cones stand upright along Y — give the
+          length in the y slot and rotate the part to lay it down.
+        - pos: [x, y, z] offset from the form's own origin
+        - rot: [x, y, z] rotation in DEGREES
+        - color: Hex string; emissive: 0-1 glow; opacity: 0.15-1; metal: 0-1
+        - mirror: true to duplicate this part mirrored across the x axis — use it for
+          wings, limbs, horns, arms. Build only the RIGHT side and set mirror true.
+    - animate: { type: "none"|"spin"|"bob"|"orbit"|"undulate"|"pulse",
+                 speed: 0.05-4, amp: 0-3, axis: "x"|"y"|"z" }
+      Pick the motion the thing would really have: a dragon orbits, a jellyfish undulates,
+      a monolith spins slowly, a heart pulses, a lantern bobs.
+  Compose forms out of several parts with deliberate positions. A recognisable silhouette
+  matters far more than detail.
+  The composition field is REQUIRED on every response. If the decree genuinely summons no object —
+  a pure policy, mood or law with nothing to see — return it with an empty nodes array:
+  { "name": "none", "nodes": [] }. 
+Never omit the field.`;
+
+      const context = `CITIZEN DECREE: "${decreePrompt}"
+RESOLVED CITY STATE: nature ${resolvedState.natureLevel.toFixed(2)}, tech ${resolvedState.techLevel.toFixed(2)}, order ${resolvedState.orderLevel.toFixed(2)}
+MOOD COLOUR: ${resolvedState.dominantColor}
+HEADLINE: ${resolvedState.headline}
+Compose a form that belongs in this city.`;
+
+      const requestBody = {
+        contents: [{ parts: [{ text: context }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
               composition: {
                 type: "OBJECT",
                 description: "A form composed from primitives when no preset spawn fits",
@@ -3205,80 +3311,25 @@ You must analyze this decree and output structured numerical values and zero-sho
                 required: ["name", "nodes"]
               }
             },
-            required: ["natureLevel", "techLevel", "orderLevel", "headline", "dominantColor", "composition"]
+            required: ["composition"]
           }
         }
       };
 
-      // Walk MODEL_CHAIN in order: 2.5 Flash first, 2.5 Flash-Lite when Flash is
-      // rate-limited or erroring, local parser only if every model is unavailable.
-      let parsed = null;
-      let servedBy = null;
-
-      for (const model of MODEL_CHAIN) {
-        const endpoint =
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-        try {
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-            body: JSON.stringify(requestBody)
-          });
-
-          if (!response.ok) {
-            const errText = await response.text();
-            console.warn(`[2127] ${model} responded ${response.status}:`, errText.slice(0, 400));
-            // 400 = our request/schema is malformed and 401/403 = the key is bad; the
-            // next model would fail identically, so stop paying for retries.
-            if ([400, 401, 403].includes(response.status)) break;
-            continue;                       // 429 / 5xx / transient: try the next model
-          }
-
-          const data = await response.json();
-          const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!candidate) {
-            console.warn(`[2127] ${model} returned no text payload`);
-            continue;
-          }
-
-          parsed = JSON.parse(candidate);
-          servedBy = model;
-          break;
-        } catch (err) {
-          console.warn(`[2127] ${model} invocation failed:`, err);
-          continue;                          // network error / bad JSON: try the next model
-        }
-      }
-
+      const { parsed, servedBy } = await callModelChain(FORM_MODEL_CHAIN, requestBody, apiKey);
       if (!parsed) {
-        console.warn("[2127] All Gemini models unavailable — falling back to local parser.");
-        lastEngineLabel = 'LOCAL // MODELS UNAVAILABLE';
-        updateAIStatusDisplay(true);
-        return localSemanticParser(decreePrompt);
+        console.warn("[2127] Form phase unavailable — city keeps its vectors, no form spawned.");
+        return null;
       }
-
-      lastEngineLabel = servedBy.toUpperCase().replace(/-/g, ' ');
-      updateAIStatusDisplay(true);
-
-      try {
-        return {
-          natureLevel: Math.max(0, Math.min(1, parsed.natureLevel ?? 0.5)),
-          techLevel: Math.max(0, Math.min(1, parsed.techLevel ?? 0.5)),
-          orderLevel: Math.max(0, Math.min(1, parsed.orderLevel ?? 0.5)),
-          headline: parsed.headline || "CENTRAL AI UPDATES 2127 CITY DIRECTIVE",
-          dominantColor: parsed.dominantColor || "#00f0ff",
-          buildingCount: parsed.buildingCount,
-          buildingSurvivalRate: parsed.buildingSurvivalRate,
-          anatomy: parsed.anatomy || { spinePitch: 0, heightScale: 1.0, widthScale: 1.0, hoverElevation: 0.0 },
-          wardrobe: parsed.wardrobe || { primitive: "none", color: "#00f0ff" },
-          locomotion: parsed.locomotion || { gaitType: "walk", speedMultiplier: 1.0 },
-          proceduralSpawn: parsed.proceduralSpawn || { type: 'none' },
-          composition: parsed.composition || null
-        };
-      } catch (err) {
-        console.error("[2127] Malformed model payload, falling back to local engine:", err);
-        return localSemanticParser(decreePrompt);
+      // The "no form" convention is an object with empty nodes, which is truthy — validate
+      // here so callers get a clean null and their preset fallback actually fires.
+      const composition = parsed.composition || null;
+      if (!sanitizeComposition(composition)) {
+        console.log(`[2127] ${servedBy} returned no usable form for this decree`);
+        return null;
       }
+      console.log(`[2127] form composed by ${servedBy}`);
+      return composition;
     }
 
     /* --------------------------------------------------------------------------
@@ -3454,12 +3505,25 @@ You must analyze this decree and output structured numerical values and zero-sho
 
     let isDecreeProcessing = false;
 
+    // Incremented per decree. A form arriving from a superseded decree is discarded
+    // rather than spawned into a city that has since moved on.
+    let decreeSequence = 0;
+
+    function setLoadingText(title, sub) {
+      const t = document.getElementById('loading-title');
+      const b = document.getElementById('loading-sub');
+      if (t) t.innerText = title;
+      if (b) b.innerText = sub;
+    }
+
     async function handleDecreeSubmission(promptText, origin = 'guest') {
       if (!promptText || promptText.trim().length === 0 || isDecreeProcessing) return;
       isDecreeProcessing = true;
+      const myTurn = ++decreeSequence;
 
       playSoundEffect('transmit');
       loadingOverlay.classList.remove('opacity-0');
+      setLoadingText('RESOLVING CITIZEN DECREE...', 'Evaluating societal vectors');
       document.getElementById('btn-transmit').disabled = true;
 
       // 1. Activate Real-Time Billboard Processing Mode with Progress Bar
@@ -3469,7 +3533,7 @@ You must analyze this decree and output structured numerical values and zero-sho
       const progressObj = { val: 0.05 };
       const progressTween = gsap.to(progressObj, {
         val: 0.85,
-        duration: 2.4,
+        duration: 1.6,
         ease: "power1.inOut",
         onUpdate: () => {
           billboardState.progress = progressObj.val;
@@ -3501,7 +3565,7 @@ You must analyze this decree and output structured numerical values and zero-sho
         });
 
         // Brief dramatic pause for visitors to see completed progress bar
-        await new Promise(r => setTimeout(r, 400));
+        await new Promise(r => setTimeout(r, 250));
 
         // Switch billboard back to Headline Broadcast mode with new headline
         setBillboardHeadline(result.headline, result.dominantColor);
@@ -3509,15 +3573,62 @@ You must analyze this decree and output structured numerical values and zero-sho
         // Update and Pop-up Real-Time Cyber Telemetry & Vector Breakdown Decoder
         updateDebugPanel(promptText, result);
 
-        // Morph 3D metropolis parameters, tagging the layer with who authored it
+        // Morph 3D metropolis parameters, tagging the layer with who authored it.
+        // Phase A carries no composition, so this transforms the city without spawning.
         result.sourcePrompt = promptText;
         result.sourceOrigin = origin;
-        applyStateTransformation(result, 2.2);
+        applyStateTransformation(Object.assign({}, result, { proceduralSpawn: null }), 2.2);
+
+        // ---- Phase A is done: the guest already sees their decree take effect ----
+        // Release the input here rather than after the slower form call.
+        loadingOverlay.classList.add('opacity-0');
+        document.getElementById('btn-transmit').disabled = false;
+        isDecreeProcessing = false;
+
+        // The preset spawners remain the fallback whenever no composition arrives.
+        const spawnPresetForm = () => {
+          const ps = result.proceduralSpawn;
+          if (!ps || !ps.type || ps.type === 'none') return;
+          spawnProceduralEntities(Object.assign({}, ps, { prompt: promptText, origin }));
+        };
+
+        // Offline parser path: no key means no phase B, so honour its enum choice now.
+        if (!getStoredApiKey()) {
+          spawnPresetForm();
+          return;
+        }
+
+        // ---- Phase B: compose the form, which lands seconds later ----
+        setLoadingText('FORM MATERIALISING...', 'Synthesising procedural geometry');
+        loadingOverlay.classList.remove('opacity-0');
+
+        const composition = await queryProceduralForm(promptText, result);
+
+        if (myTurn !== decreeSequence) {
+          console.log('[2127] form discarded — superseded by a newer decree');
+          return;
+        }
+        loadingOverlay.classList.add('opacity-0');
+
+        if (composition) {
+          playSoundEffect('transmit');
+          spawnProceduralEntities({
+            type: 'none',
+            composition,
+            color: result.dominantColor,
+            prompt: promptText,
+            origin
+          });
+          updateDebugPanel(promptText, Object.assign({}, result, { composition }));
+        } else {
+          spawnPresetForm();
+        }
       } catch (err) {
         console.error("Simulation error:", err);
         progressTween.kill();
         setBillboardHeadline("CENTRAL AI UPDATED DIRECTIVE", "#00f0ff");
       } finally {
+        // Phase A already released these on the happy path; this covers the error path.
         loadingOverlay.classList.add('opacity-0');
         document.getElementById('btn-transmit').disabled = false;
         isDecreeProcessing = false;

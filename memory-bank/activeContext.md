@@ -103,6 +103,29 @@ The application is fully functional, verified, and running as a self-contained w
      independently was insufficient: the first real dragon came back 32x51x30 in a 30-unit
      city. `buildComposition` now measures the built group and derives a fitted scale.
 
+13. **Vendored Dependencies (`vendor/`)**:
+   - Tailwind 3.4.16, three r128, OrbitControls 0.128.0, GSAP 3.12.5, Lucide 0.468.0 and all
+     three font families (30 woff2 files) are served locally. `vendor/README.md` records
+     versions, provenance and licences.
+   - `lucide@latest` was previously unpinned — an upstream release could have broken the
+     kiosk overnight. Everything is pinned now.
+   - The only remaining outbound request is `generativelanguage.googleapis.com`. Verified by
+     network trace: 14 requests on load, all localhost.
+
+14. **Two-Phase Decree Pipeline**:
+   - **Phase A** (`queryGeminiSocietalAI`, `VECTOR_MODEL_CHAIN` = Lite -> Flash): societal
+     vectors, headline, colour, anatomy, wardrobe, locomotion. Lands in ~2s; the city morphs
+     and the input is released immediately.
+   - **Phase B** (`queryProceduralForm`, `FORM_MODEL_CHAIN` = Flash -> Lite): the composed
+     form only, given the decree plus phase A's resolved state as context. Lands ~10s later
+     and materialises into an already-transformed city.
+   - `callModelChain()` is now shared by both phases.
+   - `decreeSequence` guards the async gap: a form returning after a newer decree has started
+     is discarded rather than spawned into a city that has moved on.
+   - **Phase A never spawns.** All spawn decisions belong to phase B: composition if one
+     validates, otherwise phase A's enum `proceduralSpawn` as the fallback. This keeps it to
+     exactly one layer per decree.
+
 ---
 
 ## 3. Active Decisions & Conventions
@@ -113,6 +136,9 @@ The application is fully functional, verified, and running as a self-contained w
     parser cannot author novel form, so `localSemanticParser` continues to return enum
     `proceduralSpawn` values and no `composition`. That path is exactly the DSL's own
     validation-failure fallback, so behaviour stays coherent with no API key set.
+- **One Layer Per Decree**: phase A transforms, phase B spawns. Never let both spawn.
+- **Ask Before Live API Calls**: the key is on a free tier. Stub `window.fetch` to exercise
+  code paths offline; only spend real calls with the user's explicit go-ahead.
 - **No Idle API Traffic**: nothing may call the model unless a guest acted. Any future
   ambient/attract mode must serve pre-computed responses from a static file, never live calls.
 - **Key Precedence**: `.env` (fetched at runtime, dev only) > `localStorage` (in-app modal,

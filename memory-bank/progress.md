@@ -43,6 +43,12 @@
 
 ---
 
+### Resilience & Pipeline
+- [x] All CDN dependencies vendored and pinned (`vendor/`), fonts included
+- [x] Two-phase decree: fast vectors (~2s) then composed form (~10s later)
+- [x] Superseded-decree guard so a late form never lands in a changed city
+- [x] Single spawn authority in phase B, with the preset enum as fallback
+
 ### AI Engine & Quota
 - [x] Auto-stream removed — zero API calls while idle
 - [x] Ordered model chain: 2.5 Flash -> 2.5 Flash-Lite -> offline parser
