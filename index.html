@@ -1,0 +1,3323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2127 World Shaper // 3D Societal Simulation Prototype</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['"Chakra Petch"', '"JetBrains Mono"', 'monospace'],
+            cyber: ['"Orbitron"', 'sans-serif'],
+          },
+          colors: {
+            cyber: {
+              black: '#07090e',
+              dark: '#0c1017',
+              panel: 'rgba(12, 16, 23, 0.82)',
+              cyan: '#00f0ff',
+              neonGreen: '#00ff66',
+              neonPink: '#ff007f',
+              neonYellow: '#ffe600',
+              amber: '#ff9900',
+              border: 'rgba(0, 240, 255, 0.25)',
+            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'glitch': 'glitch 1s linear infinite',
+            'spin-slow': 'spin 12s linear infinite',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Three.js and GSAP via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #07090e;
+      color: #e2e8f0;
+      font-family: 'Chakra Petch', sans-serif;
+      user-select: none;
+    }
+
+    #webgl-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* Cyberpunk HUD Glassmorphism */
+    .cyber-panel {
+      background: rgba(10, 14, 22, 0.78);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(0, 240, 255, 0.22);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6), inset 0 0 12px rgba(0, 240, 255, 0.05);
+    }
+
+    .cyber-panel-danger {
+      border-color: rgba(255, 0, 85, 0.35);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6), inset 0 0 12px rgba(255, 0, 85, 0.08);
+    }
+
+    .cyber-btn {
+      position: relative;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    }
+    .cyber-btn:hover {
+      filter: brightness(1.2);
+      transform: translateY(-1px);
+    }
+    .cyber-btn:active {
+      transform: translateY(1px);
+    }
+
+    /* Custom Scanlines Overlay */
+    .scanlines {
+      background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0),
+        rgba(255,255,255,0) 50%,
+        rgba(0, 0, 0, 0.3) 50%,
+        rgba(0, 0, 0, 0.3)
+      );
+      background-size: 100% 4px;
+      pointer-events: none;
+    }
+
+    /* Holographic corner notches */
+    .corner-tl { position: absolute; top: -1px; left: -1px; width: 6px; height: 6px; border-top: 2px solid #00f0ff; border-left: 2px solid #00f0ff; }
+    .corner-tr { position: absolute; top: -1px; right: -1px; width: 6px; height: 6px; border-top: 2px solid #00f0ff; border-right: 2px solid #00f0ff; }
+    .corner-bl { position: absolute; bottom: -1px; left: -1px; width: 6px; height: 6px; border-bottom: 2px solid #00f0ff; border-left: 2px solid #00f0ff; }
+    .corner-br { position: absolute; bottom: -1px; right: -1px; width: 6px; height: 6px; border-bottom: 2px solid #00f0ff; border-right: 2px solid #00f0ff; }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.4);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 240, 255, 0.4);
+      border-radius: 2px;
+    }
+
+    /* Audio wave animation */
+    @keyframes wave {
+      0%, 100% { height: 4px; }
+      50% { height: 16px; }
+    }
+    .wave-bar {
+      animation: wave 1s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-[#07090e] text-slate-100 flex flex-col justify-between select-none">
+
+  <!-- 3D Canvas -->
+  <canvas id="webgl-canvas"></canvas>
+
+  <!-- CRT Screen Vignette / Scanlines (Subtle overlay) -->
+  <div class="fixed inset-0 pointer-events-none scanlines z-10 opacity-25"></div>
+  <div class="fixed inset-0 pointer-events-none z-10" style="background: radial-gradient(circle at center, transparent 65%, rgba(0,0,0,0.65) 100%);"></div>
+
+  <!-- Top Navigation & Status Bar -->
+  <header class="relative z-20 px-4 py-3 flex items-center justify-between pointer-events-auto">
+    <!-- Brand / Title -->
+    <div class="flex items-center space-x-3">
+      <div class="w-9 h-9 rounded-lg bg-cyber-cyan/10 border border-cyber-cyan/40 flex items-center justify-center text-cyber-cyan shadow-[0_0_15px_rgba(0,240,255,0.3)]">
+        <i data-lucide="globe" class="w-5 h-5 animate-spin-slow"></i>
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <span class="font-cyber font-black tracking-widest text-lg text-transparent bg-clip-text bg-gradient-to-r from-cyber-cyan via-white to-cyber-neonGreen">
+            2127 WORLD SHAPER
+          </span>
+          <span class="px-2 py-0.5 text-[10px] font-mono tracking-widest bg-cyber-cyan/15 text-cyber-cyan border border-cyber-cyan/30 rounded uppercase">
+            EXHIBITION SIM
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400 font-mono tracking-wider flex items-center gap-2">
+          <span>CENTRAL SOCIETAL ENGINE</span>
+          <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+          <span id="ai-status-text" class="text-emerald-400 font-semibold">ONLINE // GEMINI 2.5 READY</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Quick Control Tools -->
+    <div class="flex items-center space-x-2">
+      <!-- Auto-Stream Guest Prompts Toggle -->
+      <button id="btn-auto-stream" title="Toggle Auto-Stream Guest Prompts" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/90 hover:bg-emerald-950/60 border border-emerald-500/60 text-emerald-300 hover:text-white flex items-center space-x-1.5 font-mono shadow-[0_0_10px_rgba(16,185,129,0.25)]">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span id="auto-stream-text" class="font-mono uppercase">Auto-Guest: 14s</span>
+      </button>
+
+      <!-- Lighting Atmosphere Toggle -->
+      <button id="btn-light-mode" title="Toggle Lighting Atmosphere (Ultra Neon / Sunlight / Dusk)" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/80 hover:bg-yellow-950/40 border border-yellow-500/60 text-yellow-300 hover:text-white flex items-center space-x-1.5 font-mono shadow-[0_0_10px_rgba(234,179,8,0.25)]">
+        <i data-lucide="sun" class="w-3.5 h-3.5 text-yellow-400"></i>
+        <span id="light-mode-text" class="font-mono uppercase hidden sm:inline">Light: Ultra</span>
+      </button>
+
+      <!-- Camera Reset Button -->
+      <button id="btn-reset-cam" title="Reset Isometric Camera" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/80 hover:bg-cyber-cyan/20 border border-slate-700 hover:border-cyber-cyan text-slate-300 hover:text-white flex items-center space-x-1.5">
+        <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-cyber-cyan"></i>
+        <span class="font-mono uppercase hidden sm:inline">Reset Cam</span>
+      </button>
+
+      <!-- Auto Orbit Toggle -->
+      <button id="btn-auto-rotate" title="Toggle Auto-Orbit" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/80 hover:bg-cyber-cyan/20 border border-slate-700 hover:border-cyber-cyan text-slate-300 hover:text-white flex items-center space-x-1.5">
+        <i data-lucide="orbit" class="w-3.5 h-3.5 text-cyber-neonGreen"></i>
+        <span id="rotate-status" class="font-mono uppercase hidden sm:inline">Orbit: On</span>
+      </button>
+
+      <!-- Audio Synth FX Toggle -->
+      <button id="btn-audio-toggle" title="Toggle Audio Soundscape" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/80 hover:bg-cyber-cyan/20 border border-slate-700 hover:border-cyber-cyan text-slate-300 hover:text-white flex items-center space-x-1.5">
+        <i data-lucide="volume-2" id="audio-icon" class="w-3.5 h-3.5 text-cyber-amber"></i>
+        <span id="audio-status" class="font-mono uppercase hidden sm:inline">Audio: Off</span>
+      </button>
+
+      <!-- API Key Settings Modal Trigger -->
+      <button id="btn-api-modal" class="cyber-btn px-3 py-1.5 text-xs bg-cyber-cyan/15 hover:bg-cyber-cyan/30 border border-cyber-cyan/50 text-cyber-cyan flex items-center space-x-1.5 font-mono shadow-[0_0_10px_rgba(0,240,255,0.2)]">
+        <i data-lucide="key" class="w-3.5 h-3.5"></i>
+        <span class="hidden md:inline">API KEY</span>
+      </button>
+
+      <!-- Telemetry / Debug Decoder Toggle -->
+      <button id="btn-debug-toggle" title="Toggle Vector Telemetry & Diagnostics" class="cyber-btn px-3 py-1.5 text-xs bg-amber-950/50 hover:bg-amber-900/70 border border-amber-500/50 text-amber-300 flex items-center space-x-1.5 font-mono shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+        <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+        <span class="hidden md:inline">DEBUG MATRIX</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Real-Time Cyber Diagnostics & Vector Breakdown Overlay -->
+  <div id="debug-panel" class="fixed top-20 right-4 z-40 w-80 md:w-96 cyber-panel p-3.5 rounded-2xl text-xs font-mono shadow-2xl transition-all duration-300 pointer-events-auto border-amber-500/40 hidden">
+    <div class="corner-tl"></div><div class="corner-tr"></div>
+    <div class="corner-bl"></div><div class="corner-br"></div>
+
+    <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+      <div class="flex items-center space-x-1.5 text-amber-400 font-bold tracking-wider">
+        <i data-lucide="cpu" class="w-4 h-4"></i>
+        <span>TELEMETRY & VECTOR DECODER</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span id="debug-engine-tag" class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-500/40">LOCAL ZERO-SHOT NLP</span>
+        <button onclick="toggleDebugPanel(false)" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Active Input Decree Prompt -->
+    <div class="mb-2 bg-black/50 p-2 rounded border border-slate-800">
+      <span class="text-[9px] text-slate-500 uppercase block font-bold">DECREE PROMPT</span>
+      <span id="debug-prompt-text" class="text-slate-200 text-[11px] italic">"None"</span>
+    </div>
+
+    <!-- Universal Parametric Matrix Readout -->
+    <div class="space-y-1.5 text-[11px]">
+      <div class="flex justify-between py-0.5 border-b border-slate-900">
+        <span class="text-slate-400">Skyline Density:</span>
+        <span id="debug-building-count" class="text-cyan-400 font-bold">28 / 28 Standing</span>
+      </div>
+      <div class="flex justify-between py-0.5 border-b border-slate-900">
+        <span class="text-slate-400">Citizen Anatomy:</span>
+        <span id="debug-anatomy" class="text-emerald-400 font-bold">Spine: 0° | Height: 1.0x</span>
+      </div>
+      <div class="flex justify-between py-0.5 border-b border-slate-900">
+        <span class="text-slate-400">Wardrobe Primitive:</span>
+        <span id="debug-wardrobe" class="text-pink-400 font-bold">none</span>
+      </div>
+      <div class="flex justify-between py-0.5 border-b border-slate-900">
+        <span class="text-slate-400">Locomotion Gait:</span>
+        <span id="debug-locomotion" class="text-purple-400 font-bold">biped_walk (1.0x)</span>
+      </div>
+      <div class="flex justify-between py-0.5 border-b border-slate-900">
+        <span class="text-slate-400">Dynamic Spawner:</span>
+        <span id="debug-spawner" class="text-yellow-400 font-bold">none</span>
+      </div>
+      <div class="flex justify-between py-0.5">
+        <span class="text-slate-400">Societal Mood:</span>
+        <span id="debug-mood" class="font-bold text-slate-300">#00f0ff (50% / 50% / 50%)</span>
+      </div>
+    </div>
+
+    <!-- Bizarre Zero-Shot Concept Badge -->
+    <div id="debug-bizarre-alert" class="mt-2.5 pt-2 border-t border-slate-800 bg-amber-950/40 p-2 rounded border border-amber-500/30 text-[10px] text-amber-200">
+      <div class="flex items-center gap-1 font-bold text-amber-300 mb-0.5">
+        <span>⚡ ZERO-SHOT SYNTHESIS ACTIVE</span>
+      </div>
+      <div id="debug-bizarre-desc">Universal parametric rig dynamically mapped prompt to 3D matrix in real time.</div>
+    </div>
+  </div>
+
+  <!-- Floating Right HUD: Live Societal Gauges & Classification -->
+  <aside class="fixed top-20 right-4 z-20 w-72 md:w-80 pointer-events-auto flex flex-col gap-3">
+    <!-- Main Gauges Panel -->
+    <div class="cyber-panel p-4 rounded-xl relative">
+      <div class="corner-tl"></div><div class="corner-tr"></div>
+      <div class="corner-bl"></div><div class="corner-br"></div>
+
+      <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-800">
+        <span class="text-xs font-mono font-bold tracking-widest text-slate-400 uppercase flex items-center gap-1.5">
+          <i data-lucide="activity" class="w-3.5 h-3.5 text-cyber-cyan"></i>
+          SOCIETAL VECTOR GAUGES
+        </span>
+        <span id="current-year" class="text-xs font-cyber font-bold text-cyber-cyan bg-cyber-cyan/10 px-2 py-0.5 rounded border border-cyber-cyan/30">
+          2127 CE
+        </span>
+      </div>
+
+      <!-- Metric 1: Nature Level -->
+      <div class="space-y-1 mb-3">
+        <div class="flex justify-between text-xs font-mono">
+          <span class="text-emerald-400 flex items-center gap-1.5">
+            <i data-lucide="trees" class="w-3.5 h-3.5"></i> NATURE / BIOSPHERE
+          </span>
+          <span id="val-nature" class="font-bold text-emerald-300">50%</span>
+        </div>
+        <div class="h-2 w-full bg-slate-900 rounded-full overflow-hidden p-0.5 border border-emerald-900/60">
+          <div id="bar-nature" class="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-700 w-1/2 shadow-[0_0_8px_rgba(52,211,153,0.5)]"></div>
+        </div>
+      </div>
+
+      <!-- Metric 2: Tech Level -->
+      <div class="space-y-1 mb-3">
+        <div class="flex justify-between text-xs font-mono">
+          <span class="text-cyan-400 flex items-center gap-1.5">
+            <i data-lucide="cpu" class="w-3.5 h-3.5"></i> TECHNOLOGY / CYBER
+          </span>
+          <span id="val-tech" class="font-bold text-cyan-300">50%</span>
+        </div>
+        <div class="h-2 w-full bg-slate-900 rounded-full overflow-hidden p-0.5 border border-cyan-900/60">
+          <div id="bar-tech" class="h-full bg-gradient-to-r from-blue-600 to-cyan-400 rounded-full transition-all duration-700 w-1/2 shadow-[0_0_8px_rgba(6,182,212,0.5)]"></div>
+        </div>
+      </div>
+
+      <!-- Metric 3: Order Level -->
+      <div class="space-y-1 mb-4">
+        <div class="flex justify-between text-xs font-mono">
+          <span class="text-amber-400 flex items-center gap-1.5">
+            <i data-lucide="shield" class="w-3.5 h-3.5"></i> ORDER / REGULATION
+          </span>
+          <span id="val-order" class="font-bold text-amber-300">50%</span>
+        </div>
+        <div class="h-2 w-full bg-slate-900 rounded-full overflow-hidden p-0.5 border border-amber-900/60">
+          <div id="bar-order" class="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full transition-all duration-700 w-1/2 shadow-[0_0_8px_rgba(251,191,36,0.5)]"></div>
+        </div>
+      </div>
+
+      <!-- Paradigm / State Classification -->
+      <div class="p-2.5 rounded-lg bg-black/40 border border-slate-800 text-center">
+        <span class="text-[10px] text-slate-500 font-mono tracking-widest uppercase block mb-1">CIVILIZATION STATE</span>
+        <div id="civilization-state" class="text-sm font-cyber font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyber-cyan via-white to-cyber-neonGreen tracking-wider">
+          SYNTHETIC EQUILIBRIUM
+        </div>
+      </div>
+
+      <!-- City Vitals Grid -->
+      <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-800/80 text-[11px] font-mono text-slate-400">
+        <div>
+          <span class="text-[9px] text-slate-500 uppercase block">POPULATION (SECTOR 0)</span>
+          <span id="stat-pop" class="text-slate-200 font-semibold">14.2M CITIZENS</span>
+        </div>
+        <div>
+          <span class="text-[9px] text-slate-500 uppercase block">ENERGY GRID INDEX</span>
+          <span id="stat-energy" class="text-cyber-cyan font-semibold">98.4 TWh / SYNTH</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Hologram Feed Snapshot -->
+    <div class="cyber-panel p-3 rounded-xl relative text-xs font-mono">
+      <div class="corner-tl"></div><div class="corner-tr"></div>
+      <div class="flex items-center justify-between text-slate-400 mb-1.5">
+        <span class="flex items-center gap-1.5 text-cyber-neonPink font-bold text-[10px] tracking-wider uppercase">
+          <span class="w-2 h-2 rounded-full bg-cyber-neonPink animate-ping inline-block"></span>
+          2127 SKY-BILLBOARD TRANSMISSION
+        </span>
+      </div>
+      <p id="live-headline-preview" class="text-slate-200 font-cyber text-xs leading-relaxed italic line-clamp-2">
+        "INITIALIZING 2127 CENTRAL SOCIETAL SIMULATION PROTOCOL..."
+      </p>
+    </div>
+  </aside>
+
+  <!-- Center Floating Status Notice (e.g. while calculating AI transformation) -->
+  <div id="loading-overlay" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none opacity-0 transition-opacity duration-300 flex flex-col items-center">
+    <div class="cyber-panel px-6 py-4 rounded-xl flex items-center space-x-3 border-cyber-cyan shadow-[0_0_30px_rgba(0,240,255,0.4)]">
+      <div class="w-6 h-6 border-2 border-cyber-cyan border-t-transparent rounded-full animate-spin"></div>
+      <div class="font-mono text-sm">
+        <div class="font-cyber font-bold text-cyber-cyan tracking-wider">GEMINI 2.5 RE-COMPUTING METROPOLIS...</div>
+        <div class="text-[11px] text-slate-400">Morphing procedural geometry & ecological parameters</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Command Console & Preset Bar -->
+  <footer class="relative z-20 p-4 md:p-6 w-full max-w-5xl mx-auto pointer-events-auto space-y-3">
+    <!-- Preset Chips Row -->
+    <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar justify-start md:justify-center">
+      <span class="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider hidden sm:inline-block px-1">
+        QUICK PRESETS:
+      </span>
+
+      <!-- Preset 1: Solarpunk Haven -->
+      <button onclick="applyPreset('solarpunk')" class="cyber-btn px-3 py-1.5 text-xs bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/50 text-emerald-200 flex items-center space-x-1.5 shrink-0 rounded">
+        <span>🌿</span>
+        <span class="font-semibold">Solarpunk Haven</span>
+        <span class="text-[10px] text-emerald-400 opacity-75 hidden lg:inline">(Bio: 1.0, Tech: 0.8, Ord: 0.9)</span>
+      </button>
+
+      <!-- Preset 2: Cyberpunk Surveillance State -->
+      <button onclick="applyPreset('cyberpunk')" class="cyber-btn px-3 py-1.5 text-xs bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/50 text-cyan-200 flex items-center space-x-1.5 shrink-0 rounded">
+        <span>⚡</span>
+        <span class="font-semibold">Cyberpunk State</span>
+        <span class="text-[10px] text-cyan-400 opacity-75 hidden lg:inline">(Bio: 0.0, Tech: 1.0, Ord: 1.0)</span>
+      </button>
+
+      <!-- Preset 3: Wasteland Anarchy -->
+      <button onclick="applyPreset('wasteland')" class="cyber-btn px-3 py-1.5 text-xs bg-red-950/60 hover:bg-red-900/80 border border-red-500/50 text-red-200 flex items-center space-x-1.5 shrink-0 rounded">
+        <span>☣️</span>
+        <span class="font-semibold">Wasteland Anarchy</span>
+        <span class="text-[10px] text-red-400 opacity-75 hidden lg:inline">(Bio: 0.1, Tech: 0.2, Ord: 0.0)</span>
+      </button>
+
+      <!-- Preset 4: Neon Bio-Synth Oasis -->
+      <button onclick="applyPreset('biosynth')" class="cyber-btn px-3 py-1.5 text-xs bg-pink-950/60 hover:bg-pink-900/80 border border-pink-500/50 text-pink-200 flex items-center space-x-1.5 shrink-0 rounded">
+        <span>🔮</span>
+        <span class="font-semibold">Bio-Synth Oasis</span>
+        <span class="text-[10px] text-pink-400 opacity-75 hidden lg:inline">(Bio: 0.9, Tech: 0.9, Ord: 0.5)</span>
+      </button>
+    </div>
+
+    <!-- Wild / Unprepared Decrees Row (Demonstrating Zero-Shot Procedural AI) -->
+    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar justify-start md:justify-center">
+      <span class="text-[10px] font-mono text-purple-400 font-bold uppercase tracking-wider hidden sm:inline-block px-1">
+        ✨ ZERO-SHOT AI:
+      </span>
+      <button onclick="submitWildPrompt('All citizens must wear bright green hats and march in unison')" class="cyber-btn px-2.5 py-1 text-[11px] bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-400/60 text-emerald-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(16,185,129,0.2)]">
+        <span>🎩</span>
+        <span>Green Hats Edict</span>
+      </button>
+      <button onclick="submitWildPrompt('Spawn giant bioluminescent tentacles emerging from the ground')" class="cyber-btn px-2.5 py-1 text-[11px] bg-purple-950/80 hover:bg-purple-900 border border-purple-400/60 text-purple-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(168,85,247,0.2)]">
+        <span>🐙</span>
+        <span>Bio Tentacles</span>
+      </button>
+      <button onclick="submitWildPrompt('Transform metropolis towers into floating crystal monoliths with purple auras')" class="cyber-btn px-2.5 py-1 text-[11px] bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-400/60 text-indigo-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(99,102,241,0.2)]">
+        <span>💎</span>
+        <span>Crystal Monoliths</span>
+      </button>
+      <button onclick="submitWildPrompt('Deploy a massive glowing planetary energy ring above the city')" class="cyber-btn px-2.5 py-1 text-[11px] bg-yellow-950/80 hover:bg-yellow-900 border border-yellow-400/60 text-yellow-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(234,179,8,0.2)]">
+        <span>🪐</span>
+        <span>Planetary Rings</span>
+      </button>
+      <button onclick="submitWildPrompt('Spawn a celestial quantum singularity black hole with glowing photon rings')" class="cyber-btn px-2.5 py-1 text-[11px] bg-orange-950/80 hover:bg-orange-900 border border-orange-400/60 text-orange-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(249,115,22,0.2)]">
+        <span>🌌</span>
+        <span>Singularity</span>
+      </button>
+      <button onclick="submitWildPrompt('Deploy a fleet of cyber UFO alien saucers with tractor beams')" class="cyber-btn px-2.5 py-1 text-[11px] bg-sky-950/80 hover:bg-sky-900 border border-sky-400/60 text-sky-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(56,189,248,0.2)]">
+        <span>🛸</span>
+        <span>Alien Fleet</span>
+      </button>
+      <button onclick="submitWildPrompt('Only one building left standing as a colossal citadel')" class="cyber-btn px-2.5 py-1 text-[11px] bg-amber-950/80 hover:bg-amber-900 border border-amber-400/60 text-amber-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(245,158,11,0.2)]">
+        <span>🏛️</span>
+        <span>Sole Monolith</span>
+      </button>
+      <button onclick="submitWildPrompt('All citizens must walk on 4 legs like cyber quadrupeds')" class="cyber-btn px-2.5 py-1 text-[11px] bg-rose-950/80 hover:bg-rose-900 border border-rose-400/60 text-rose-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(244,63,94,0.2)]">
+        <span>🐾</span>
+        <span>4-Legs Protocol</span>
+      </button>
+      <button onclick="submitWildPrompt('All people must be at least 1.8m tall')" class="cyber-btn px-2.5 py-1 text-[11px] bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-400/60 text-cyan-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(0,240,255,0.2)]">
+        <span>📏</span>
+        <span>1.8m Height</span>
+      </button>
+      <button onclick="submitWildPrompt('Everyone must dance with floating golden halos and neon horns')" class="cyber-btn px-2.5 py-1 text-[11px] bg-pink-950/80 hover:bg-pink-900 border border-pink-400/60 text-pink-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(236,72,153,0.2)]">
+        <span>💃</span>
+        <span>Halo Dance Party</span>
+      </button>
+    </div>
+
+    <!-- Main Visitor Decree Input Console -->
+    <div class="cyber-panel p-2.5 md:p-3 rounded-2xl shadow-2xl relative">
+      <div class="corner-tl"></div><div class="corner-tr"></div>
+      <div class="corner-bl"></div><div class="corner-br"></div>
+
+      <form id="decree-form" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <!-- Voice Input / Mic Button -->
+        <button type="button" id="btn-voice" title="Speech to Decree (Voice Input)" class="cyber-btn p-3 bg-slate-900/90 hover:bg-cyber-cyan/20 border border-slate-700 hover:border-cyber-cyan text-slate-300 hover:text-cyber-cyan flex items-center justify-center rounded-xl shrink-0 transition-colors">
+          <i data-lucide="mic" id="mic-icon" class="w-5 h-5"></i>
+        </button>
+
+        <!-- Decree Input Box -->
+        <div class="relative flex-1">
+          <input 
+            type="text" 
+            id="decree-input" 
+            placeholder="Propose a 2127 vision or law... (e.g. 'Ban all fossil machinery and fuse architecture with bioluminescent coral trees')" 
+            class="w-full bg-black/60 text-slate-100 placeholder-slate-500 font-mono text-sm px-4 py-3 rounded-xl border border-slate-700/80 focus:border-cyber-cyan focus:outline-none focus:ring-1 focus:ring-cyber-cyan transition-all"
+            autocomplete="off"
+          />
+          <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none hidden md:flex items-center gap-1 text-[10px] font-mono text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
+            <span>PRESS</span>
+            <kbd class="text-cyber-cyan font-bold">ENTER</kbd>
+          </div>
+        </div>
+
+        <!-- Transmit Decree Button -->
+        <button 
+          type="submit" 
+          id="btn-transmit" 
+          class="cyber-btn px-6 py-3 bg-gradient-to-r from-cyber-cyan via-teal-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-slate-950 font-cyber font-extrabold text-sm tracking-wider flex items-center justify-center space-x-2 rounded-xl shadow-[0_0_20px_rgba(0,240,255,0.4)] shrink-0"
+        >
+          <i data-lucide="send" class="w-4 h-4"></i>
+          <span>TRANSMIT DECREE</span>
+        </button>
+      </form>
+    </div>
+  </footer>
+
+  <!-- Gemini API Key Modal -->
+  <div id="api-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="cyber-panel w-full max-w-md p-6 rounded-2xl relative">
+      <div class="corner-tl"></div><div class="corner-tr"></div>
+      <div class="corner-bl"></div><div class="corner-br"></div>
+
+      <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
+        <div class="flex items-center space-x-2 text-cyber-cyan font-cyber font-bold">
+          <i data-lucide="shield-check" class="w-5 h-5"></i>
+          <span>GEMINI 2.5 FLASH CONFIG</span>
+        </div>
+        <button onclick="toggleApiModal(false)" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <p class="text-xs font-mono text-slate-300 leading-relaxed mb-4">
+        Enter your Google Gemini API key to enable live LLM structured inference for any visitor decree. If no key is entered, the simulation seamlessly uses its built-in <strong class="text-cyber-cyan">Local 2127 Semantic Analyzer</strong>!
+      </p>
+
+      <div class="space-y-3 mb-5">
+        <label class="block text-xs font-mono text-slate-400 uppercase tracking-wider">Gemini API Key</label>
+        <div class="relative">
+          <input 
+            type="password" 
+            id="api-key-input" 
+            placeholder="AIzaSy..." 
+            class="w-full bg-black/70 text-slate-100 font-mono text-sm px-4 py-2.5 rounded-lg border border-slate-700 focus:border-cyber-cyan focus:outline-none"
+          />
+          <button type="button" onclick="toggleKeyVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+            <i data-lucide="eye" id="eye-icon" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <p class="text-[10px] text-slate-500 font-mono">
+          Stored locally in your browser's <code class="text-cyber-cyan">localStorage</code>. Never sent anywhere except directly to Google's official Gemini endpoint.
+        </p>
+      </div>
+
+      <div class="flex justify-end space-x-2">
+        <button onclick="clearApiKey()" class="px-4 py-2 text-xs font-mono text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded-lg border border-red-900/50">
+          Clear Key
+        </button>
+        <button onclick="saveApiKey()" class="cyber-btn px-5 py-2 text-xs font-cyber font-bold bg-cyber-cyan text-slate-950 rounded-lg shadow-[0_0_15px_rgba(0,240,255,0.4)]">
+          SAVE & CONNECT
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Implementation -->
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    /* ==========================================================================
+       1. GLOBAL STATE & CITY SIMULATION PARAMETERS (2127)
+       ========================================================================== */
+    const cityState = {
+      natureLevel: 0.5,    // 0.0 (wasteland/barren) to 1.0 (dense vertical forest)
+      techLevel: 0.5,      // 0.0 (primitive/analog) to 1.0 (hyper-cyberpunk)
+      orderLevel: 0.5,     // 0.0 (anarchy/chaos) to 1.0 (absolute surveillance order)
+      headline: "2127 CENTRAL SIMULATION ENGINE ONLINE // WAITING FOR CITIZEN DECREE",
+      dominantColor: "#00f0ff",
+      // Secondary dynamic vitals
+      population: 14.2,
+      energyIndex: 98.4
+    };
+
+    // Preset Definitions (as per 2127 specifications)
+    const PRESETS = {
+      solarpunk: {
+        natureLevel: 1.0,
+        techLevel: 0.8,
+        orderLevel: 0.9,
+        headline: "YEAR 2127: VERTICAL FORESTS ACHIEVE 100% CLEAN ENERGY AUTONOMY",
+        dominantColor: "#10b981",
+        stateName: "SOLARPUNK ZENITH"
+      },
+      cyberpunk: {
+        natureLevel: 0.0,
+        techLevel: 1.0,
+        orderLevel: 1.0,
+        headline: "CENTRAL AI ENFORCES 24/7 SURVEILLANCE & OPTIMAL PRODUCTIVITY GRID",
+        dominantColor: "#00f0ff",
+        stateName: "CYBERPUNK SURVEILLANCE"
+      },
+      wasteland: {
+        natureLevel: 0.1,
+        techLevel: 0.2,
+        orderLevel: 0.0,
+        headline: "ENERGY GRID FAILURE TRIGGERS CHAOS IN INDUSTRIAL SECTOR 4",
+        dominantColor: "#ef4444",
+        stateName: "WASTELAND ANARCHY"
+      },
+      biosynth: {
+        natureLevel: 0.9,
+        techLevel: 0.9,
+        orderLevel: 0.5,
+        headline: "BIOLUMINESCENT NEON FLORA POWERS EXPERIMENTAL CYBER-METROPOLIS",
+        dominantColor: "#ec4899",
+        stateName: "NEON BIO-SYNTH OASIS"
+      }
+    };
+
+    /* ==========================================================================
+       2. WEB AUDIO SYNTHESIZER (EXHIBITION SOUNDSCAPE FX)
+       ========================================================================== */
+    let audioCtx = null;
+    let isAudioEnabled = false;
+    let droneOsc1 = null;
+    let droneOsc2 = null;
+    let droneGain = null;
+
+    function initAudio() {
+      if (audioCtx) return;
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+        
+        // Ambient sci-fi drone
+        droneGain = audioCtx.createGain();
+        droneGain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+        droneGain.connect(audioCtx.destination);
+
+        droneOsc1 = audioCtx.createOscillator();
+        droneOsc1.type = 'sine';
+        droneOsc1.frequency.setValueAtTime(55, audioCtx.currentTime); // A1 note
+        droneOsc1.connect(droneGain);
+        droneOsc1.start();
+
+        droneOsc2 = audioCtx.createOscillator();
+        droneOsc2.type = 'triangle';
+        droneOsc2.frequency.setValueAtTime(110, audioCtx.currentTime); // A2 note
+        droneOsc2.connect(droneGain);
+        droneOsc2.start();
+      } catch (e) {
+        console.warn("Web Audio not supported or blocked", e);
+      }
+    }
+
+    function playSoundEffect(type) {
+      if (!isAudioEnabled || !audioCtx) return;
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (type === 'transmit') {
+        // Futuristic cyber transmission chime
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(1760, now + 0.35);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+      } else if (type === 'morph') {
+        // Deep sub bass morph whoosh
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(70, now + 0.8);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+        osc.start(now);
+        osc.stop(now + 0.8);
+      } else if (type === 'click') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, now);
+        gain.gain.setValueAtTime(0.04, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        osc.start(now);
+        osc.stop(now + 0.08);
+      }
+    }
+
+    document.getElementById('btn-audio-toggle').addEventListener('click', () => {
+      isAudioEnabled = !isAudioEnabled;
+      const btn = document.getElementById('btn-audio-toggle');
+      const text = document.getElementById('audio-status');
+      const icon = document.getElementById('audio-icon');
+
+      if (isAudioEnabled) {
+        initAudio();
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        if (droneGain) droneGain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+        text.innerText = "Audio: On";
+        btn.classList.add('border-cyber-cyan', 'text-cyber-cyan');
+        playSoundEffect('click');
+      } else {
+        if (droneGain && audioCtx) droneGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
+        text.innerText = "Audio: Off";
+        btn.classList.remove('border-cyber-cyan', 'text-cyber-cyan');
+      }
+    });
+
+    /* ==========================================================================
+       3. THREE.JS 3D PROCEDURAL ISOMETRIC CITY ENGINE
+       ========================================================================== */
+    const canvas = document.getElementById('webgl-canvas');
+    let scene, camera, renderer, controls;
+    let dirLight, ambientLight, pointLight;
+    
+    // Scene object collections
+    const GRID_SIZE = 10;
+    const TILE_SIZE = 3;
+    const buildings = [];
+    const trees = [];
+    const groundTiles = [];
+    const drones = [];
+    const citizens = [];
+    let citizenGroup;
+    const dynamicEntities = [];
+    let dynamicEntitiesGroup;
+    let hemiLight;
+    const districtLights = [];
+    const streetlights = [];
+    const searchlights = [];
+    const buildingWindows = [];
+    let currentLightingMode = 'ultra'; // 'ultra' | 'sun' | 'sunset'
+    let particleSystems = {
+      cyber: null,
+      spores: null,
+      smoke: null
+    };
+    let billboardMesh, billboardTexture, billboardCanvas, billboardCtx;
+    let haloRings = [];
+
+    function init3D() {
+      // Scene
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color('#07090e');
+      scene.fog = new THREE.FogExp2('#07090e', 0.012);
+
+      dynamicEntitiesGroup = new THREE.Group();
+      scene.add(dynamicEntitiesGroup);
+
+      // Camera (Isometric angle)
+      const aspect = window.innerWidth / window.innerHeight;
+      camera = new THREE.PerspectiveCamera(38, aspect, 0.1, 1000);
+      resetCameraPosition();
+
+      // Renderer (High Dynamic Exposure for Maximum Light Brilliance)
+      renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: "high-performance" });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.45; // Super-luminous exposure!
+
+      // Orbit Controls
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2.15; // Don't allow viewing from beneath ground
+      controls.minDistance = 15;
+      controls.maxDistance = 90;
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.4;
+      controls.target.set(0, 2, 0);
+
+      // --- High Dynamic Lighting Rig ---
+      // 1. Vibrant Sky/Ground Fill Light
+      hemiLight = new THREE.HemisphereLight(0xe0f2fe, 0x111827, 1.3);
+      scene.add(hemiLight);
+
+      // 2. Ambient Global Illumination
+      ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+      scene.add(ambientLight);
+
+      // 3. Directional Sun (Crisp High-Intensity Shadows)
+      dirLight = new THREE.DirectionalLight(0xffffff, 2.2);
+      dirLight.position.set(32, 48, 22);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
+      dirLight.shadow.camera.near = 10;
+      dirLight.shadow.camera.far = 120;
+      const d = 26;
+      dirLight.shadow.camera.left = -d;
+      dirLight.shadow.camera.right = d;
+      dirLight.shadow.camera.top = d;
+      dirLight.shadow.camera.bottom = -d;
+      dirLight.shadow.bias = -0.0005;
+      scene.add(dirLight);
+
+      // 4. Central Plaza Super-Luminous Light Beacon
+      pointLight = new THREE.PointLight(0x00f0ff, 4.8, 70);
+      pointLight.position.set(0, 14, 0);
+      scene.add(pointLight);
+
+      // 5. Four Colorful District Glow Beacons
+      const districtConfigs = [
+        { col: 0x00f0ff, x: -8, y: 6.5, z: -8 }, // NW Cyber Cyan
+        { col: 0xff007f, x: 8, y: 6.5, z: 8 },   // SE Neon Pink
+        { col: 0x00ff88, x: -8, y: 6.5, z: 8 },  // SW Solarpunk Emerald
+        { col: 0xffb703, x: 8, y: 6.5, z: -8 }   // NE Golden Amber
+      ];
+      districtConfigs.forEach(cfg => {
+        const p = new THREE.PointLight(cfg.col, 3.4, 45);
+        p.position.set(cfg.x, cfg.y, cfg.z);
+        scene.add(p);
+        districtLights.push({ light: p, baseColor: cfg.col, baseIntensity: 3.4 });
+      });
+
+      // Build Procedural 3D World with Massive Illumination
+      createGroundGrid();
+      createProceduralCity();
+      createStreetlights();
+      createSearchlights();
+      createDynamicBillboard();
+      createFloraEcosystem();
+      createDroneFleet();
+      createCitizenFleet();
+      createAtmosphericParticles();
+
+      // Window resize listener
+      window.addEventListener('resize', onWindowResize);
+
+      // Start render loop
+      animate();
+    }
+
+    function resetCameraPosition() {
+      camera.position.set(36, 28, 36);
+      if (controls) {
+        controls.target.set(0, 2, 0);
+        controls.update();
+      }
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    /* --------------------------------------------------------------------------
+       Ground Grid (10x10 Matrix with Luminous Energy Conduits)
+       -------------------------------------------------------------------------- */
+    function createGroundGrid() {
+      const half = (GRID_SIZE * TILE_SIZE) / 2;
+      
+      for (let x = 0; x < GRID_SIZE; x++) {
+        for (let z = 0; z < GRID_SIZE; z++) {
+          const posX = (x * TILE_SIZE) - half + TILE_SIZE / 2;
+          const posZ = (z * TILE_SIZE) - half + TILE_SIZE / 2;
+          
+          const isRoad = (x === 2 || x === 7 || z === 2 || z === 7);
+          const isPark = (x >= 4 && x <= 5 && z >= 4 && z <= 5);
+
+          const geom = new THREE.BoxGeometry(TILE_SIZE * 0.96, 0.3, TILE_SIZE * 0.96);
+          const mat = new THREE.MeshStandardMaterial({
+            color: isRoad ? 0x111622 : (isPark ? 0x1e3a29 : 0x161c28),
+            roughness: 0.65,
+            metalness: 0.35,
+          });
+
+          const tile = new THREE.Mesh(geom, mat);
+          tile.position.set(posX, -0.15, posZ);
+          tile.receiveShadow = true;
+          scene.add(tile);
+
+          // Neon glowing edge borders (High-Luminosity Conduits)
+          const wireGeom = new THREE.EdgesGeometry(geom);
+          const wireMat = new THREE.LineBasicMaterial({ 
+            color: isRoad ? 0x00f0ff : 0x00ff88, 
+            transparent: true, 
+            opacity: isRoad ? 0.75 : 0.35 
+          });
+          const wire = new THREE.LineSegments(wireGeom, wireMat);
+          tile.add(wire);
+
+          groundTiles.push({
+            mesh: tile,
+            wireMat: wireMat,
+            isRoad: isRoad,
+            isPark: isPark,
+            baseColor: isRoad ? 0x111622 : (isPark ? 0x1e3a29 : 0x161c28),
+            gridX: x,
+            gridZ: z
+          });
+        }
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       Procedural Buildings with Glowing Windows & Neon Trim
+       -------------------------------------------------------------------------- */
+    function createProceduralCity() {
+      const half = (GRID_SIZE * TILE_SIZE) / 2;
+
+      for (let x = 0; x < GRID_SIZE; x++) {
+        for (let z = 0; z < GRID_SIZE; z++) {
+          // Skip road lanes and central plaza to leave breathing room
+          if (x === 2 || x === 7 || z === 2 || z === 7) continue;
+          if (x >= 4 && x <= 5 && z >= 4 && z <= 5) continue; // Plaza for Billboard
+
+          const posX = (x * TILE_SIZE) - half + TILE_SIZE / 2;
+          const posZ = (z * TILE_SIZE) - half + TILE_SIZE / 2;
+
+          // Deterministic pseudo-random height based on coordinates
+          const distFromCenter = Math.sqrt(Math.pow(x - 4.5, 2) + Math.pow(z - 4.5, 2));
+          const baseHeight = 2.5 + (5.5 - distFromCenter * 0.7) * (1.2 + Math.sin(x * 13 + z * 37) * 0.6);
+          const width = TILE_SIZE * 0.8;
+          const depth = TILE_SIZE * 0.8;
+
+          // Building main mesh
+          const geom = new THREE.BoxGeometry(width, baseHeight, depth);
+          geom.translate(0, baseHeight / 2, 0);
+
+          const mat = new THREE.MeshStandardMaterial({
+            color: 0x1c2433,
+            roughness: 0.35,
+            metalness: 0.7,
+            emissive: 0x002233,
+            emissiveIntensity: 0.35
+          });
+
+          const building = new THREE.Mesh(geom, mat);
+          building.position.set(posX, 0, posZ);
+          building.castShadow = true;
+          building.receiveShadow = true;
+          scene.add(building);
+
+          // Glowing Wireframe Edges (Tech visual)
+          const edgesGeom = new THREE.EdgesGeometry(geom);
+          const edgesMat = new THREE.LineBasicMaterial({
+            color: 0x00f0ff,
+            transparent: true,
+            opacity: 0.85,
+            linewidth: 1.5
+          });
+          const wireframe = new THREE.LineSegments(edgesGeom, edgesMat);
+          building.add(wireframe);
+
+          // --- Procedural Glowing Window Matrices (Interior City Light) ---
+          const windowRows = Math.floor(baseHeight * 1.6);
+          const windowCols = 3;
+          const windowGroup = new THREE.Group();
+
+          for (let r = 0; r < windowRows; r++) {
+            for (let c = 0; c < windowCols; c++) {
+              if (Math.random() > 0.35) {
+                const winGeom = new THREE.PlaneGeometry(0.35, 0.22);
+                const winColor = (Math.random() > 0.4) ? 0x00f0ff : ((Math.random() > 0.5) ? 0xffe600 : 0xff007f);
+                const winMat = new THREE.MeshBasicMaterial({
+                  color: winColor,
+                  transparent: true,
+                  opacity: 0.95
+                });
+
+                // Front window
+                const winFront = new THREE.Mesh(winGeom, winMat);
+                winFront.position.set((c - 1) * 0.58, 0.4 + r * 0.52, depth / 2 + 0.015);
+                windowGroup.add(winFront);
+
+                // Back window
+                const winBack = new THREE.Mesh(winGeom, winMat);
+                winBack.position.set((c - 1) * 0.58, 0.4 + r * 0.52, -depth / 2 - 0.015);
+                winBack.rotation.y = Math.PI;
+                windowGroup.add(winBack);
+
+                buildingWindows.push(winMat);
+              }
+            }
+          }
+          building.add(windowGroup);
+
+          // Rooftop holographic tech ring / energy coil
+          const ringGeom = new THREE.TorusGeometry(0.8, 0.05, 8, 24);
+          ringGeom.rotateX(Math.PI / 2);
+          const ringMat = new THREE.MeshBasicMaterial({
+            color: 0x00f0ff,
+            transparent: true,
+            opacity: 0.9
+          });
+          const ring = new THREE.Mesh(ringGeom, ringMat);
+          ring.position.set(0, baseHeight + 0.3, 0);
+          building.add(ring);
+          haloRings.push(ring);
+
+          // Rooftop Foliage Cluster (Nature visual)
+          const foliageGroup = new THREE.Group();
+          const foliageGeom = new THREE.DodecahedronGeometry(0.5, 1);
+          const foliageMat = new THREE.MeshStandardMaterial({
+            color: 0x22c55e,
+            roughness: 0.8,
+            metalness: 0.1
+          });
+          for (let f = 0; f < 3; f++) {
+            const fMesh = new THREE.Mesh(foliageGeom, foliageMat);
+            fMesh.position.set(
+              (Math.random() - 0.5) * 0.7,
+              baseHeight + 0.2 + f * 0.2,
+              (Math.random() - 0.5) * 0.7
+            );
+            fMesh.scale.set(0.6, 0.6, 0.6);
+            foliageGroup.add(fMesh);
+          }
+          foliageGroup.scale.set(0.5, 0.5, 0.5);
+          building.add(foliageGroup);
+
+          buildings.push({
+            mesh: building,
+            mat: mat,
+            wireMat: edgesMat,
+            ring: ring,
+            ringMat: ringMat,
+            foliageGroup: foliageGroup,
+            windowGroup: windowGroup,
+            baseHeight: baseHeight,
+            currentHeight: baseHeight,
+            originalPos: { x: posX, y: 0, z: posZ },
+            randSeed: Math.random()
+          });
+        }
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       Dynamic Cyber Streetlights & Ground Illuminators (24+ Posts)
+       -------------------------------------------------------------------------- */
+    function createStreetlights() {
+      const poleGeom = new THREE.CylinderGeometry(0.04, 0.05, 2.4, 6);
+      poleGeom.translate(0, 1.2, 0);
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8 });
+
+      const headGeom = new THREE.BoxGeometry(0.35, 0.08, 0.15);
+      const bulbGeom = new THREE.SphereGeometry(0.08, 8, 8);
+      const groundGlowGeom = new THREE.CircleGeometry(1.2, 16);
+      groundGlowGeom.rotateX(-Math.PI / 2);
+
+      const lampPositions = [
+        // Road 1 (X = -7.5)
+        { x: -7.5, z: -12 }, { x: -7.5, z: -6 }, { x: -7.5, z: 0 }, { x: -7.5, z: 6 }, { x: -7.5, z: 12 },
+        // Road 2 (X = 7.5)
+        { x: 7.5, z: -12 }, { x: 7.5, z: -6 }, { x: 7.5, z: 0 }, { x: 7.5, z: 6 }, { x: 7.5, z: 12 },
+        // Road 3 (Z = -7.5)
+        { x: -12, z: -7.5 }, { x: -6, z: -7.5 }, { x: 0, z: -7.5 }, { x: 6, z: -7.5 }, { x: 12, z: -7.5 },
+        // Road 4 (Z = 7.5)
+        { x: -12, z: 7.5 }, { x: -6, z: 7.5 }, { x: 0, z: 7.5 }, { x: 6, z: 7.5 }, { x: 12, z: 7.5 },
+        // Central Plaza Corners
+        { x: -3.5, z: -3.5 }, { x: 3.5, z: -3.5 }, { x: -3.5, z: 3.5 }, { x: 3.5, z: 3.5 }
+      ];
+
+      lampPositions.forEach((pos, idx) => {
+        const lampGroup = new THREE.Group();
+        lampGroup.position.set(pos.x, 0, pos.z);
+
+        // Pole
+        const pole = new THREE.Mesh(poleGeom, poleMat);
+        lampGroup.add(pole);
+
+        // Arm/Head
+        const head = new THREE.Mesh(headGeom, poleMat);
+        head.position.set(0.15, 2.38, 0);
+        lampGroup.add(head);
+
+        // Luminous Neon Bulb
+        const bulbMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+        const bulb = new THREE.Mesh(bulbGeom, bulbMat);
+        bulb.position.set(0.28, 2.32, 0);
+        lampGroup.add(bulb);
+
+        // Ground Light Pool Disc
+        const groundMat = new THREE.MeshBasicMaterial({
+          color: 0x00f0ff,
+          transparent: true,
+          opacity: 0.35,
+          blending: THREE.AdditiveBlending
+        });
+        const groundDisc = new THREE.Mesh(groundGlowGeom, groundMat);
+        groundDisc.position.set(0.28, 0.02, 0);
+        lampGroup.add(groundDisc);
+
+        scene.add(lampGroup);
+
+        streetlights.push({
+          group: lampGroup,
+          bulbMat: bulbMat,
+          groundMat: groundMat,
+          baseColor: 0x00f0ff
+        });
+      });
+    }
+
+    /* --------------------------------------------------------------------------
+       Sweeping Rooftop Volumetric Searchlights & Cyber Laser Beams
+       -------------------------------------------------------------------------- */
+    function createSearchlights() {
+      // Mount volumetric searchlights on high towers
+      const towerSpots = [
+        { x: -4.5, y: 12, z: -4.5, speed: 0.8, phase: 0 },
+        { x: 4.5, y: 14, z: -4.5, speed: -0.7, phase: 1.5 },
+        { x: -4.5, y: 13, z: 4.5, speed: -0.9, phase: 3.0 },
+        { x: 4.5, y: 15, z: 4.5, speed: 0.75, phase: 4.5 },
+        { x: 0, y: 18, z: 0, speed: 1.2, phase: 2.2 } // Central billboard apex beam
+      ];
+
+      const beamGeom = new THREE.CylinderGeometry(0.12, 3.4, 32, 16, 1, true);
+      beamGeom.translate(0, 16, 0);
+      beamGeom.rotateX(Math.PI / 3.8); // 50-degree upward sweep
+
+      towerSpots.forEach((spot, i) => {
+        const pivot = new THREE.Group();
+        pivot.position.set(spot.x, spot.y, spot.z);
+
+        const beamMat = new THREE.MeshBasicMaterial({
+          color: (i % 2 === 0) ? 0x00f0ff : 0xff007f,
+          transparent: true,
+          opacity: 0.32,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide
+        });
+
+        const beam = new THREE.Mesh(beamGeom, beamMat);
+        pivot.add(beam);
+
+        // Bright beacon sphere at base of beam
+        const emitterGeom = new THREE.SphereGeometry(0.25, 8, 8);
+        const emitterMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const emitter = new THREE.Mesh(emitterGeom, emitterMat);
+        pivot.add(emitter);
+
+        scene.add(pivot);
+
+        searchlights.push({
+          pivot: pivot,
+          beamMat: beamMat,
+          speed: spot.speed,
+          phase: spot.phase
+        });
+      });
+    }
+
+    /* --------------------------------------------------------------------------
+       Dynamic 3D Holographic Sky-Billboard Engine
+       -------------------------------------------------------------------------- */
+    const billboardState = {
+      mode: 'headline', // 'headline' | 'processing'
+      headlineText: "2127 CENTRAL SIMULATION ENGINE ONLINE // WAITING FOR CITIZEN DECREE",
+      colorHex: "#00f0ff",
+      promptText: "",
+      progress: 0.0, // 0.0 to 1.0
+      statusStage: "DECODING CITIZEN SPEECH & SEMANTICS...",
+    };
+
+    function createDynamicBillboard() {
+      billboardCanvas = document.createElement('canvas');
+      billboardCanvas.width = 1024;
+      billboardCanvas.height = 384;
+      billboardCtx = billboardCanvas.getContext('2d');
+
+      renderBillboardCanvas(0);
+
+      billboardTexture = new THREE.CanvasTexture(billboardCanvas);
+      billboardTexture.minFilter = THREE.LinearFilter;
+      billboardTexture.magFilter = THREE.LinearFilter;
+
+      // Double-sided glowing plane
+      const geom = new THREE.PlaneGeometry(9, 3.4);
+      const mat = new THREE.MeshBasicMaterial({
+        map: billboardTexture,
+        transparent: true,
+        opacity: 0.94,
+        side: THREE.DoubleSide
+      });
+
+      billboardMesh = new THREE.Mesh(geom, mat);
+      billboardMesh.position.set(0, 11, 0);
+      scene.add(billboardMesh);
+
+      // Structural Support Frame
+      const frameGeom = new THREE.BoxGeometry(9.4, 3.6, 0.2);
+      const frameWireGeom = new THREE.EdgesGeometry(frameGeom);
+      const frameWireMat = new THREE.LineBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.7 });
+      const frameWire = new THREE.LineSegments(frameWireGeom, frameWireMat);
+      billboardMesh.add(frameWire);
+
+      // Support Pylons
+      const pylonGeom = new THREE.CylinderGeometry(0.12, 0.12, 9, 8);
+      const pylonMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 });
+      const pylon1 = new THREE.Mesh(pylonGeom, pylonMat);
+      pylon1.position.set(-4, -4.5, 0);
+      const pylon2 = new THREE.Mesh(pylonGeom, pylonMat);
+      pylon2.position.set(4, -4.5, 0);
+      billboardMesh.add(pylon1);
+      billboardMesh.add(pylon2);
+    }
+
+    function setBillboardProcessing(promptText, stage = "INGESTING CITIZEN SIGNAL...") {
+      billboardState.mode = 'processing';
+      billboardState.promptText = promptText;
+      billboardState.progress = 0.05;
+      billboardState.statusStage = stage;
+      renderBillboardCanvas(Date.now() * 0.001);
+    }
+
+    function setBillboardHeadline(headlineText, colorHex) {
+      billboardState.mode = 'headline';
+      billboardState.headlineText = headlineText;
+      billboardState.colorHex = colorHex || cityState.dominantColor;
+      renderBillboardCanvas(Date.now() * 0.001);
+    }
+
+    function renderBillboardCanvas(elapsedTime) {
+      if (!billboardCtx) return;
+      const w = billboardCanvas.width;
+      const h = billboardCanvas.height;
+      const colorHex = billboardState.colorHex || '#00f0ff';
+
+      // Clear & Background
+      billboardCtx.fillStyle = 'rgba(6, 9, 16, 0.96)';
+      billboardCtx.fillRect(0, 0, w, h);
+
+      if (billboardState.mode === 'processing') {
+        // === MODE: PROCESSING DECREE (WITH REAL-TIME PROGRESS BAR) ===
+        // Animated Pulsing Border
+        const pulseAlpha = 0.7 + Math.sin(elapsedTime * 6) * 0.3;
+        billboardCtx.strokeStyle = `rgba(0, 240, 255, ${pulseAlpha})`;
+        billboardCtx.lineWidth = 6;
+        billboardCtx.strokeRect(8, 8, w - 16, h - 16);
+
+        // Tech Corner Notches (Glowing Amber/Cyan)
+        billboardCtx.fillStyle = '#ffb703';
+        billboardCtx.fillRect(8, 8, 30, 8);
+        billboardCtx.fillRect(8, 8, 8, 30);
+        billboardCtx.fillRect(w - 38, 8, 30, 8);
+        billboardCtx.fillRect(w - 16, 8, 8, 30);
+        billboardCtx.fillRect(8, h - 16, 30, 8);
+        billboardCtx.fillRect(8, h - 38, 8, 30);
+        billboardCtx.fillRect(w - 38, h - 16, 30, 8);
+        billboardCtx.fillRect(w - 16, h - 38, 8, 30);
+
+        // Header: Blinking REC Status & Stage
+        const blinkRec = (Math.floor(elapsedTime * 3) % 2 === 0);
+        billboardCtx.fillStyle = blinkRec ? '#ef4444' : '#64748b';
+        billboardCtx.beginPath();
+        billboardCtx.arc(40, 42, 8, 0, Math.PI * 2);
+        billboardCtx.fill();
+
+        billboardCtx.font = 'bold 22px "Orbitron", monospace';
+        billboardCtx.fillStyle = '#00f0ff';
+        billboardCtx.fillText(">>> LIVE INGESTION: 2127 CENTRAL AI PROCESSING DECREE", 58, 48);
+
+        // Middle Prompt Box Container
+        billboardCtx.fillStyle = 'rgba(0, 240, 255, 0.08)';
+        billboardCtx.strokeStyle = 'rgba(0, 240, 255, 0.35)';
+        billboardCtx.lineWidth = 2;
+        billboardCtx.fillRect(32, 70, w - 64, 130);
+        billboardCtx.strokeRect(32, 70, w - 64, 130);
+
+        billboardCtx.font = 'bold 16px "Chakra Petch", monospace';
+        billboardCtx.fillStyle = '#94a3b8';
+        billboardCtx.fillText("INGESTED CITIZEN INPUT:", 46, 94);
+
+        // Render Ingested Prompt Text
+        billboardCtx.font = '700 24px "Chakra Petch", sans-serif';
+        billboardCtx.fillStyle = '#f8fafc';
+        wrapText(billboardCtx, `"${billboardState.promptText.toUpperCase()}"`, 46, 128, w - 92, 30);
+
+        // Progress Bar Container & Label
+        const barX = 32;
+        const barY = 220;
+        const barW = w - 64;
+        const barH = 46;
+        const pct = Math.max(0, Math.min(1, billboardState.progress));
+
+        // Progress Track
+        billboardCtx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+        billboardCtx.strokeStyle = '#00f0ff';
+        billboardCtx.lineWidth = 2;
+        billboardCtx.fillRect(barX, barY, barW, barH);
+        billboardCtx.strokeRect(barX, barY, barW, barH);
+
+        // Segmented Track Background Grids
+        billboardCtx.fillStyle = 'rgba(0, 240, 255, 0.06)';
+        const step = 24;
+        for (let x = barX + 4; x < barX + barW - 4; x += step) {
+          billboardCtx.fillRect(x, barY + 3, step - 4, barH - 6);
+        }
+
+        // Filled Gradient Bar
+        const fillW = Math.max(8, (barW - 8) * pct);
+        const grad = billboardCtx.createLinearGradient(barX, 0, barX + fillW, 0);
+        grad.addColorStop(0, '#00f0ff');
+        grad.addColorStop(0.6, '#10b981');
+        grad.addColorStop(1, '#ffb703');
+        billboardCtx.fillStyle = grad;
+        billboardCtx.fillRect(barX + 4, barY + 4, fillW, barH - 8);
+
+        // Animated Moving Chevron/Hazard Scanlines across progress fill
+        billboardCtx.save();
+        billboardCtx.beginPath();
+        billboardCtx.rect(barX + 4, barY + 4, fillW, barH - 8);
+        billboardCtx.clip();
+        billboardCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        billboardCtx.lineWidth = 4;
+        const offset = (elapsedTime * 60) % 24;
+        for (let x = barX - 40 + offset; x < barX + fillW + 40; x += 20) {
+          billboardCtx.beginPath();
+          billboardCtx.moveTo(x, barY + barH);
+          billboardCtx.lineTo(x + 16, barY);
+          billboardCtx.stroke();
+        }
+        billboardCtx.restore();
+
+        // Progress Percent & Stage Readout
+        billboardCtx.font = 'bold 20px "Orbitron", monospace';
+        billboardCtx.fillStyle = '#ffffff';
+        billboardCtx.shadowColor = '#000000';
+        billboardCtx.shadowBlur = 6;
+        const progressLabel = `${Math.round(pct * 100)}% COMPLETED // ${billboardState.statusStage}`;
+        billboardCtx.fillText(progressLabel, barX + 16, barY + 30);
+        billboardCtx.shadowBlur = 0;
+
+        // Bottom Activity Diagnostic Equalizer
+        billboardCtx.fillStyle = '#00f0ff';
+        for (let i = 0; i < 48; i++) {
+          const barHeight = 4 + Math.abs(Math.sin(i * 0.5 + elapsedTime * 10)) * 26;
+          billboardCtx.fillRect(32 + i * 20, h - 25 - barHeight / 2, 8, barHeight);
+        }
+
+        billboardCtx.font = '600 13px "Chakra Petch", monospace';
+        billboardCtx.fillStyle = '#64748b';
+        billboardCtx.fillText("QUANTUM SOCIETAL MATRIX // PROCEDURAL THREE.JS MESH RE-COMPUTE", 32, h - 45);
+
+      } else {
+        // === MODE: BROADCASTING BREAKING NEWS HEADLINE ===
+        billboardCtx.strokeStyle = colorHex || '#00f0ff';
+        billboardCtx.lineWidth = 8;
+        billboardCtx.strokeRect(8, 8, w - 16, h - 16);
+
+        // Corner Tech Accents
+        billboardCtx.fillStyle = colorHex || '#00f0ff';
+        billboardCtx.fillRect(8, 8, 30, 8);
+        billboardCtx.fillRect(8, 8, 8, 30);
+        billboardCtx.fillRect(w - 38, 8, 30, 8);
+        billboardCtx.fillRect(w - 16, 8, 8, 30);
+        billboardCtx.fillRect(8, h - 16, 30, 8);
+        billboardCtx.fillRect(8, h - 38, 8, 30);
+        billboardCtx.fillRect(w - 38, h - 16, 30, 8);
+        billboardCtx.fillRect(w - 16, h - 38, 8, 30);
+
+        // Header Tag
+        billboardCtx.font = 'bold 24px "Orbitron", monospace';
+        billboardCtx.fillStyle = colorHex || '#00f0ff';
+        billboardCtx.fillText(">>> 2127 WORLD NETWORK // LIVE DIRECTIVE BROADCAST", 32, 50);
+
+        // Breaking News Headline (Auto wrap)
+        billboardCtx.font = '900 34px "Chakra Petch", sans-serif';
+        billboardCtx.fillStyle = '#ffffff';
+        wrapText(billboardCtx, (billboardState.headlineText || cityState.headline).toUpperCase(), 32, 115, w - 64, 44);
+
+        // Scanline Effect on Canvas
+        billboardCtx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+        for (let y = 0; y < h; y += 4) {
+          billboardCtx.fillRect(0, y, w, 2);
+        }
+
+        // Simulated Waveform Bars at bottom
+        billboardCtx.fillStyle = colorHex || '#00f0ff';
+        for (let i = 0; i < 48; i++) {
+          const barH = 6 + Math.sin(i * 0.4 + elapsedTime * 5) * 16;
+          billboardCtx.fillRect(32 + i * 20, h - 35 - barH / 2, 8, barH);
+        }
+      }
+
+      if (billboardTexture) billboardTexture.needsUpdate = true;
+    }
+
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+      const words = text.split(' ');
+      let line = '';
+      let currentY = y;
+
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+        if (testWidth > maxWidth && n > 0) {
+          ctx.fillText(line, x, currentY);
+          line = words[n] + ' ';
+          currentY += lineHeight;
+        } else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line, x, currentY);
+    }
+
+    /* --------------------------------------------------------------------------
+       Procedural Flora Ecosystem (Trees & Foliage)
+       -------------------------------------------------------------------------- */
+    function createFloraEcosystem() {
+      const half = (GRID_SIZE * TILE_SIZE) / 2;
+      const trunkGeom = new THREE.CylinderGeometry(0.08, 0.12, 1.2, 6);
+      trunkGeom.translate(0, 0.6, 0);
+      const trunkMat = new THREE.MeshStandardMaterial({ color: 0x452a1d, roughness: 0.9 });
+
+      const foliageGeom = new THREE.DodecahedronGeometry(0.7, 1);
+      foliageGeom.translate(0, 1.4, 0);
+      const foliageMat = new THREE.MeshStandardMaterial({
+        color: 0x10b981,
+        roughness: 0.6,
+        metalness: 0.1
+      });
+
+      // Scatter trees across plazas, parks, and sidewalks
+      for (let i = 0; i < 50; i++) {
+        const treeGroup = new THREE.Group();
+        const trunk = new THREE.Mesh(trunkGeom, trunkMat);
+        const foliage = new THREE.Mesh(foliageGeom, foliageMat.clone());
+        trunk.castShadow = true;
+        foliage.castShadow = true;
+        
+        treeGroup.add(trunk);
+        treeGroup.add(foliage);
+
+        // Position in parks or street margins
+        let posX = (Math.random() * (GRID_SIZE * TILE_SIZE)) - half;
+        let posZ = (Math.random() * (GRID_SIZE * TILE_SIZE)) - half;
+        
+        // Random scaling variation
+        const baseScale = 0.8 + Math.random() * 0.5;
+        treeGroup.position.set(posX, 0, posZ);
+        treeGroup.scale.set(baseScale * 0.5, baseScale * 0.5, baseScale * 0.5);
+        scene.add(treeGroup);
+
+        trees.push({
+          group: treeGroup,
+          foliageMat: foliage.material,
+          baseScale: baseScale,
+          seed: Math.random() * Math.PI * 2
+        });
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       Dynamic Autonomous Flying Drones & Sky-Traffic
+       -------------------------------------------------------------------------- */
+    function createDroneFleet() {
+      const droneGeom = new THREE.BoxGeometry(0.4, 0.1, 0.4);
+      const droneMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        metalness: 0.9,
+        roughness: 0.1
+      });
+
+      for (let i = 0; i < 20; i++) {
+        const drone = new THREE.Mesh(droneGeom, droneMat);
+        
+        // Glowing beacon light on drone
+        const beaconGeom = new THREE.SphereGeometry(0.08, 8, 8);
+        const beaconMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+        const beacon = new THREE.Mesh(beaconGeom, beaconMat);
+        beacon.position.set(0, 0.08, 0);
+        drone.add(beacon);
+
+        const radius = 6 + Math.random() * 12;
+        const altitude = 4 + Math.random() * 8;
+        const speed = 0.008 + Math.random() * 0.015;
+        const offset = Math.random() * Math.PI * 2;
+
+        scene.add(drone);
+        drones.push({
+          mesh: drone,
+          beaconMat: beaconMat,
+          radius: radius,
+          altitude: altitude,
+          speed: speed,
+          offset: offset,
+          direction: Math.random() > 0.5 ? 1 : -1
+        });
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       Dynamic Autonomous Pedestrians / Citizens (2127 Metropolis)
+       -------------------------------------------------------------------------- */
+    function createCitizenFleet() {
+      citizenGroup = new THREE.Group();
+      scene.add(citizenGroup);
+
+      // Precompute walkable navigation nodes across roads, sidewalks, and plazas
+      const streetCoords = [-12, -7.5, -4.5, -1.5, 0, 1.5, 4.5, 7.5, 12];
+      const waypoints = [];
+
+      for (let i = 0; i < streetCoords.length; i++) {
+        for (let j = 0; j < streetCoords.length; j++) {
+          const wx = streetCoords[i];
+          const wz = streetCoords[j];
+          // Main walkable avenues & central plaza area
+          if (Math.abs(wx) === 7.5 || Math.abs(wz) === 7.5 || (Math.abs(wx) <= 3 && Math.abs(wz) <= 3) || Math.abs(wx) === 12 || Math.abs(wz) === 12) {
+            waypoints.push({ x: wx, z: wz });
+          }
+        }
+      }
+
+      // Spawn 50 Cyber Citizens
+      const citizenCount = 50;
+      for (let i = 0; i < citizenCount; i++) {
+        const citizenMesh = new THREE.Group();
+
+        // 1. Torso / Cyber Jacket
+        const torsoGeom = new THREE.BoxGeometry(0.24, 0.36, 0.16);
+        const torsoMat = new THREE.MeshStandardMaterial({
+          color: 0x1e293b,
+          roughness: 0.5,
+          metalness: 0.6
+        });
+        const torso = new THREE.Mesh(torsoGeom, torsoMat);
+        torso.position.y = 0.36;
+        torso.castShadow = true;
+        citizenMesh.add(torso);
+
+        // 2. Head
+        const headGeom = new THREE.SphereGeometry(0.09, 8, 8);
+        const headMat = new THREE.MeshStandardMaterial({
+          color: 0xf1f5f9,
+          roughness: 0.4
+        });
+        const head = new THREE.Mesh(headGeom, headMat);
+        head.position.y = 0.6;
+        head.castShadow = true;
+        citizenMesh.add(head);
+
+        // 3. Glowing Cyber Visor / Hologram band
+        const visorGeom = new THREE.BoxGeometry(0.14, 0.04, 0.08);
+        const visorMat = new THREE.MeshBasicMaterial({
+          color: 0x00f0ff,
+          transparent: true,
+          opacity: 0.95
+        });
+        const visor = new THREE.Mesh(visorGeom, visorMat);
+        visor.position.set(0, 0.61, 0.07);
+        citizenMesh.add(visor);
+
+        // 4. Cyber Backpack / Neural Battery
+        const packGeom = new THREE.BoxGeometry(0.16, 0.22, 0.08);
+        const packMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8 });
+        const pack = new THREE.Mesh(packGeom, packMat);
+        pack.position.set(0, 0.38, -0.11);
+        citizenMesh.add(pack);
+
+        // 5. Left Leg Pivot & Mesh
+        const legLGroup = new THREE.Group();
+        legLGroup.position.set(-0.07, 0.22, 0);
+        const legGeom = new THREE.CylinderGeometry(0.035, 0.03, 0.22, 6);
+        legGeom.translate(0, -0.11, 0);
+        const legMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6 });
+        const legL = new THREE.Mesh(legGeom, legMat);
+        legLGroup.add(legL);
+        citizenMesh.add(legLGroup);
+
+        // 6. Right Leg Pivot & Mesh
+        const legRGroup = new THREE.Group();
+        legRGroup.position.set(0.07, 0.22, 0);
+        const legR = new THREE.Mesh(legGeom, legMat);
+        legRGroup.add(legR);
+        citizenMesh.add(legRGroup);
+
+        // 7. Left & Right Arm Pivots
+        const armGeom = new THREE.CylinderGeometry(0.025, 0.025, 0.22, 6);
+        armGeom.translate(0, -0.11, 0);
+        const armLGroup = new THREE.Group();
+        armLGroup.position.set(-0.16, 0.48, 0);
+        const armL = new THREE.Mesh(armGeom, torsoMat);
+        armLGroup.add(armL);
+        citizenMesh.add(armLGroup);
+
+        const armRGroup = new THREE.Group();
+        armRGroup.position.set(0.16, 0.48, 0);
+        const armR = new THREE.Mesh(armGeom, torsoMat);
+        armRGroup.add(armR);
+        citizenMesh.add(armRGroup);
+
+        // 8. Dynamic Accessory & Headwear Slots (For Zero-Shot Prompt Reactions)
+        const hatGroup = new THREE.Group();
+        hatGroup.position.set(0, 0.69, 0);
+        citizenMesh.add(hatGroup);
+
+        const auraGroup = new THREE.Group();
+        auraGroup.position.set(0, 0.78, 0);
+        citizenMesh.add(auraGroup);
+
+        // Pick random initial starting node
+        const startNode = waypoints[Math.floor(Math.random() * waypoints.length)];
+        const initialX = startNode.x + (Math.random() - 0.5) * 0.8;
+        const initialZ = startNode.z + (Math.random() - 0.5) * 0.8;
+        citizenMesh.position.set(initialX, 0, initialZ);
+
+        // Scaling variation
+        const scaleVal = 0.75 + Math.random() * 0.2;
+        citizenMesh.scale.set(scaleVal, scaleVal, scaleVal);
+        citizenGroup.add(citizenMesh);
+
+        citizens.push({
+          mesh: citizenMesh,
+          baseScaleVal: scaleVal,
+          torsoMesh: torso,
+          headMesh: head,
+          torsoMat: torsoMat,
+          visorMat: visorMat,
+          legLGroup: legLGroup,
+          legRGroup: legRGroup,
+          armLGroup: armLGroup,
+          armRGroup: armRGroup,
+          hatGroup: hatGroup,
+          auraGroup: auraGroup,
+          currentX: initialX,
+          currentZ: initialZ,
+          targetX: startNode.x,
+          targetZ: startNode.z,
+          baseSpeed: 0.025 + Math.random() * 0.025,
+          currentSpeed: 0.03,
+          walkPhase: Math.random() * Math.PI * 2,
+          waypoints: waypoints,
+          pauseTimer: 0,
+          behavior: 'walk',
+          isProtesting: Math.random() > 0.6
+        });
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       Universal Parametric Anatomy, Wardrobe & Locomotion Rig
+       -------------------------------------------------------------------------- */
+    function updateUniversalCitizenRig(modifier = {}) {
+      // Normalize legacy parameters and new continuous schema
+      const hatType = modifier.hatType || (modifier.headwear ? modifier.headwear.primitive : 'none');
+      const hatColor = modifier.hatColor || (modifier.headwear ? modifier.headwear.color : null);
+      const behavior = modifier.behavior || (modifier.locomotion ? modifier.locomotion.gaitType : 'walk');
+      const heightScale = modifier.heightScale || (modifier.anatomy ? modifier.anatomy.heightScale : 1.0);
+      const widthScale = modifier.widthScale || (modifier.anatomy ? modifier.anatomy.widthScale : 1.0);
+      const hoverElevation = (modifier.hoverElevation !== undefined) ? modifier.hoverElevation : (modifier.anatomy && modifier.anatomy.hoverElevation !== undefined ? modifier.anatomy.hoverElevation : 0.0);
+      const speedMult = modifier.speedMultiplier || (modifier.locomotion ? modifier.locomotion.speedMultiplier : 1.0);
+
+      let spinePitchDeg = modifier.spinePitch !== undefined ? modifier.spinePitch : (modifier.anatomy ? modifier.anatomy.spinePitch : null);
+      if (spinePitchDeg === null) {
+        if (behavior === 'quadruped' || behavior === '4_legs' || behavior === 'quadruped_trot') {
+          spinePitchDeg = 72;
+        } else {
+          spinePitchDeg = 0;
+        }
+      }
+
+      const spinePitchRad = (spinePitchDeg * Math.PI) / 180;
+
+      citizens.forEach((c) => {
+        c.behavior = behavior;
+        c.speedMultiplier = speedMult;
+        c.hoverElevation = hoverElevation;
+        c.spinePitchRad = spinePitchRad;
+        c.currentSpeed = c.baseSpeed * speedMult;
+
+        // Dynamic 3D Scale & Proportions
+        const targetScaleX = c.baseScaleVal * widthScale;
+        const targetScaleY = c.baseScaleVal * heightScale;
+        const targetScaleZ = c.baseScaleVal * widthScale;
+
+        gsap.to(c.mesh.scale, {
+          x: targetScaleX,
+          y: targetScaleY,
+          z: targetScaleZ,
+          duration: 1.4,
+          ease: "back.out(1.7)"
+        });
+
+        // Continuous Spine Pitch & Posture Morph
+        if (spinePitchDeg > 40) {
+          // Quadruped / Beast Crawl Stance
+          gsap.to(c.torsoMesh.rotation, { x: spinePitchRad, duration: 1.2 });
+          gsap.to(c.torsoMesh.position, { y: 0.22, duration: 1.2 });
+          gsap.to(c.headMesh.position, { y: 0.36, z: 0.26, duration: 1.2 });
+          gsap.to(c.armLGroup.position, { y: 0.24, z: 0.16, duration: 1.2 });
+          gsap.to(c.armRGroup.position, { y: 0.24, z: 0.16, duration: 1.2 });
+          gsap.to(c.legLGroup.position, { y: 0.18, z: -0.16, duration: 1.2 });
+          gsap.to(c.legRGroup.position, { y: 0.18, z: -0.16, duration: 1.2 });
+        } else {
+          // Upright Bipedal Stance
+          gsap.to(c.torsoMesh.rotation, { x: spinePitchRad, duration: 1.2 });
+          gsap.to(c.torsoMesh.position, { y: 0.36, duration: 1.2 });
+          gsap.to(c.headMesh.position, { y: 0.6, z: 0, duration: 1.2 });
+          gsap.to(c.armLGroup.position, { y: 0.48, z: 0, duration: 1.2 });
+          gsap.to(c.armRGroup.position, { y: 0.48, z: 0, duration: 1.2 });
+          gsap.to(c.legLGroup.position, { y: 0.22, z: 0, duration: 1.2 });
+          gsap.to(c.legRGroup.position, { y: 0.22, z: 0, duration: 1.2 });
+        }
+
+        // Clear existing hat & aura
+        while (c.hatGroup.children.length > 0) {
+          const child = c.hatGroup.children[0];
+          c.hatGroup.remove(child);
+        }
+        while (c.auraGroup.children.length > 0) {
+          const child = c.auraGroup.children[0];
+          c.auraGroup.remove(child);
+        }
+
+        // Procedural Headwear Primitive Synthesizer
+        const resolvedColor = hatColor ? (typeof hatColor === 'string' && hatColor.startsWith('#') ? parseInt(hatColor.replace('#', '0x')) : hatColor) : 0x00f0ff;
+
+        if (hatType === 'green_hat' || hatType === 'top_hat' || hatType === 'hat') {
+          const hColor = (hatType === 'green_hat') ? 0x22c55e : resolvedColor;
+          const hatMat = new THREE.MeshStandardMaterial({ color: hColor, roughness: 0.35, metalness: 0.4 });
+          const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.015, 12), hatMat);
+          const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.12, 12), hatMat);
+          crown.position.y = 0.06;
+          const band = new THREE.Mesh(new THREE.CylinderGeometry(0.078, 0.078, 0.025, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+          band.position.y = 0.02;
+          c.hatGroup.add(brim);
+          c.hatGroup.add(crown);
+          c.hatGroup.add(band);
+        } else if (hatType === 'halo' || hatType === 'torus') {
+          const halo = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.018, 8, 20), new THREE.MeshBasicMaterial({ color: resolvedColor || 0xffd700, transparent: true, opacity: 0.95 }));
+          halo.rotation.x = Math.PI / 2;
+          c.auraGroup.add(halo);
+        } else if (hatType === 'horns' || hatType === 'dual_horns') {
+          const hornMat = new THREE.MeshBasicMaterial({ color: resolvedColor || 0xff0055 });
+          const hornGeom = new THREE.ConeGeometry(0.035, 0.12, 6);
+          hornGeom.translate(0, 0.06, 0);
+          const hornL = new THREE.Mesh(hornGeom, hornMat);
+          hornL.position.set(-0.06, 0, 0);
+          hornL.rotation.z = 0.35;
+          const hornR = new THREE.Mesh(hornGeom, hornMat);
+          hornR.position.set(0.06, 0, 0);
+          hornR.rotation.z = -0.35;
+          c.hatGroup.add(hornL);
+          c.hatGroup.add(hornR);
+        } else if (hatType === 'box' || hatType === 'cube') {
+          const cubeMat = new THREE.MeshStandardMaterial({ color: resolvedColor, metalness: 0.8, roughness: 0.2 });
+          const cube = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), cubeMat);
+          cube.position.y = 0.09;
+          c.hatGroup.add(cube);
+        } else if (hatType === 'sphere' || hatType === 'helmet') {
+          const sphereMat = new THREE.MeshStandardMaterial({ color: resolvedColor, transparent: true, opacity: 0.85, roughness: 0.1, metalness: 0.9 });
+          const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), sphereMat);
+          c.hatGroup.add(sphere);
+        } else if (hatType === 'cone') {
+          const coneMat = new THREE.MeshStandardMaterial({ color: resolvedColor, roughness: 0.4 });
+          const cone = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.2, 10), coneMat);
+          cone.position.y = 0.1;
+          c.hatGroup.add(cone);
+        }
+
+        if (c.hatGroup.children.length > 0) {
+          c.hatGroup.scale.set(0.001, 0.001, 0.001);
+          gsap.to(c.hatGroup.scale, { x: 1, y: 1, z: 1, duration: 0.8, ease: "back.out(2)" });
+        }
+        if (c.auraGroup.children.length > 0) {
+          c.auraGroup.scale.set(0.001, 0.001, 0.001);
+          gsap.to(c.auraGroup.scale, { x: 1, y: 1, z: 1, duration: 0.8, ease: "back.out(2)" });
+        }
+      });
+    }
+
+    const updateCitizenAccessories = updateUniversalCitizenRig;
+
+    /* --------------------------------------------------------------------------
+       Dynamic Procedural Entity Spawner (Zero-Shot Synthesis)
+       -------------------------------------------------------------------------- */
+    function spawnProceduralEntities(spawnConfig = {}) {
+      // Clean up previous dynamic entities
+      while (dynamicEntitiesGroup.children.length > 0) {
+        const child = dynamicEntitiesGroup.children[0];
+        dynamicEntitiesGroup.remove(child);
+      }
+      dynamicEntities.length = 0;
+
+      const type = spawnConfig.type || 'none';
+      const colorHex = spawnConfig.color || '#a855f7';
+
+      if (type === 'tentacles') {
+        // 8 Serpentine Bioluminescent Tentacles rising from road junctions
+        const tentacleSpots = [
+          { x: -7.5, z: -7.5 }, { x: 7.5, z: -7.5 },
+          { x: -7.5, z: 7.5 }, { x: 7.5, z: 7.5 },
+          { x: 0, z: -7.5 }, { x: 0, z: 7.5 },
+          { x: -7.5, z: 0 }, { x: 7.5, z: 0 }
+        ];
+
+        tentacleSpots.forEach((spot, idx) => {
+          const rootGroup = new THREE.Group();
+          rootGroup.position.set(spot.x, 0, spot.z);
+
+          const joints = [];
+          let currentParent = rootGroup;
+          const segmentCount = 7;
+
+          for (let s = 0; s < segmentCount; s++) {
+            const segGroup = new THREE.Group();
+            segGroup.position.y = (s === 0) ? 0 : 0.9;
+
+            const radiusTop = 0.35 * (1 - (s + 1) / (segmentCount + 1));
+            const radiusBottom = 0.35 * (1 - s / (segmentCount + 1));
+            const geom = new THREE.CylinderGeometry(radiusTop, radiusBottom, 0.9, 10);
+            geom.translate(0, 0.45, 0);
+
+            const mat = new THREE.MeshStandardMaterial({
+              color: colorHex,
+              roughness: 0.2,
+              metalness: 0.7,
+              emissive: colorHex,
+              emissiveIntensity: 0.5
+            });
+
+            const mesh = new THREE.Mesh(geom, mat);
+            segGroup.add(mesh);
+
+            // Glowing suction ring accent
+            const ringGeom = new THREE.TorusGeometry(radiusBottom + 0.02, 0.02, 6, 12);
+            ringGeom.rotateX(Math.PI / 2);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+            const ring = new THREE.Mesh(ringGeom, ringMat);
+            segGroup.add(ring);
+
+            currentParent.add(segGroup);
+            joints.push(segGroup);
+            currentParent = segGroup;
+          }
+
+          rootGroup.scale.set(0.001, 0.001, 0.001);
+          dynamicEntitiesGroup.add(rootGroup);
+          gsap.to(rootGroup.scale, { x: 1, y: 1, z: 1, duration: 1.5, ease: "elastic.out(1, 0.5)" });
+
+          dynamicEntities.push({
+            type: 'tentacle',
+            root: rootGroup,
+            joints: joints,
+            phase: idx * 0.8,
+            speed: 2.0
+          });
+        });
+      } else if (type === 'crystals') {
+        // 6 Huge Floating Crystal Monoliths
+        const crystalSpots = [
+          { x: -5, y: 14, z: -5 }, { x: 5, y: 16, z: -5 },
+          { x: -5, y: 15, z: 5 }, { x: 5, y: 13, z: 5 },
+          { x: 0, y: 20, z: -8 }, { x: 0, y: 19, z: 8 }
+        ];
+
+        crystalSpots.forEach((spot, idx) => {
+          const crystalGeom = new THREE.OctahedronGeometry(2.2, 0);
+          crystalGeom.scale(0.8, 2.5, 0.8);
+
+          const crystalMat = new THREE.MeshStandardMaterial({
+            color: colorHex,
+            roughness: 0.1,
+            metalness: 0.9,
+            emissive: colorHex,
+            emissiveIntensity: 0.6,
+            transparent: true,
+            opacity: 0.88
+          });
+
+          const crystal = new THREE.Mesh(crystalGeom, crystalMat);
+          crystal.position.set(spot.x, spot.y, spot.z);
+
+          // Wireframe neon lattice
+          const wireGeom = new THREE.EdgesGeometry(crystalGeom);
+          const wireMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
+          const wire = new THREE.LineSegments(wireGeom, wireMat);
+          crystal.add(wire);
+
+          crystal.scale.set(0.001, 0.001, 0.001);
+          dynamicEntitiesGroup.add(crystal);
+          gsap.to(crystal.scale, { x: 1, y: 1, z: 1, duration: 1.2, ease: "back.out(1.7)" });
+
+          dynamicEntities.push({
+            type: 'crystal',
+            mesh: crystal,
+            baseY: spot.y,
+            rotSpeed: 0.015 * (idx % 2 === 0 ? 1 : -1),
+            phase: idx * 1.2
+          });
+        });
+      } else if (type === 'energy_rings') {
+        // 3 Giant Concentric Holographic Planetary Rings
+        for (let r = 0; r < 3; r++) {
+          const ringGeom = new THREE.TorusGeometry(12 + r * 3.5, 0.12, 8, 48);
+          const ringMat = new THREE.MeshBasicMaterial({
+            color: colorHex,
+            transparent: true,
+            opacity: 0.75,
+            side: THREE.DoubleSide
+          });
+          const ringMesh = new THREE.Mesh(ringGeom, ringMat);
+          ringMesh.position.set(0, 14 + r * 2, 0);
+          ringMesh.rotation.x = Math.PI / 3 + r * 0.2;
+          ringMesh.rotation.y = r * 0.4;
+
+          ringMesh.scale.set(0.001, 0.001, 0.001);
+          dynamicEntitiesGroup.add(ringMesh);
+          gsap.to(ringMesh.scale, { x: 1, y: 1, z: 1, duration: 1.8, ease: "power2.out" });
+
+          dynamicEntities.push({
+            type: 'ring',
+            mesh: ringMesh,
+            rotSpeedX: 0.005 * (r + 1),
+            rotSpeedY: 0.008 * (r % 2 === 0 ? 1 : -1)
+          });
+        }
+      } else if (type === 'black_hole' || type === 'singularity') {
+        // Celestial Quantum Singularity & Accretion Vortex
+        const bhGroup = new THREE.Group();
+        bhGroup.position.set(0, 18, 0);
+
+        const coreMesh = new THREE.Mesh(new THREE.SphereGeometry(2.4, 24, 24), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+        bhGroup.add(coreMesh);
+
+        const diskGeom = new THREE.RingGeometry(2.6, 6.5, 32);
+        diskGeom.rotateX(Math.PI / 2);
+        const diskMesh = new THREE.Mesh(diskGeom, new THREE.MeshBasicMaterial({
+          color: colorHex || 0xff5500,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.85
+        }));
+        bhGroup.add(diskMesh);
+
+        const photonRingGeom = new THREE.TorusGeometry(7.2, 0.08, 8, 32);
+        photonRingGeom.rotateX(Math.PI / 2.8);
+        const photonRing = new THREE.Mesh(photonRingGeom, new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.9 }));
+        bhGroup.add(photonRing);
+
+        bhGroup.scale.set(0.001, 0.001, 0.001);
+        dynamicEntitiesGroup.add(bhGroup);
+        gsap.to(bhGroup.scale, { x: 1, y: 1, z: 1, duration: 2.0, ease: "power3.out" });
+
+        dynamicEntities.push({
+          type: 'black_hole',
+          group: bhGroup,
+          disk: diskMesh,
+          photonRing: photonRing
+        });
+      } else if (type === 'ufo' || type === 'alien_ship') {
+        // 4 Hovering Cyber UFOs with Glowing Tractor Beams
+        const ufoSpots = [
+          { x: -6, y: 16, z: -6 }, { x: 6, y: 17, z: -6 },
+          { x: -6, y: 15, z: 6 }, { x: 6, y: 16, z: 6 }
+        ];
+
+        ufoSpots.forEach((spot, idx) => {
+          const ufoGroup = new THREE.Group();
+          ufoGroup.position.set(spot.x, spot.y, spot.z);
+
+          const saucerGeom = new THREE.CylinderGeometry(1.6, 1.8, 0.4, 16);
+          const saucerMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.9, roughness: 0.2 });
+          const saucer = new THREE.Mesh(saucerGeom, saucerMat);
+          ufoGroup.add(saucer);
+
+          const bubbleGeom = new THREE.SphereGeometry(0.7, 12, 12);
+          const bubbleMat = new THREE.MeshBasicMaterial({ color: colorHex || 0x00f0ff, transparent: true, opacity: 0.9 });
+          const bubble = new THREE.Mesh(bubbleGeom, bubbleMat);
+          bubble.position.y = 0.3;
+          ufoGroup.add(bubble);
+
+          const beamGeom = new THREE.ConeGeometry(2.5, 14, 16, 1, true);
+          beamGeom.translate(0, -7, 0);
+          const beamMat = new THREE.MeshBasicMaterial({ color: colorHex || 0x00f0ff, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+          const beam = new THREE.Mesh(beamGeom, beamMat);
+          ufoGroup.add(beam);
+
+          ufoGroup.scale.set(0.001, 0.001, 0.001);
+          dynamicEntitiesGroup.add(ufoGroup);
+          gsap.to(ufoGroup.scale, { x: 1, y: 1, z: 1, duration: 1.4, ease: "back.out(1.5)" });
+
+          dynamicEntities.push({
+            type: 'ufo',
+            group: ufoGroup,
+            baseY: spot.y,
+            phase: idx * 1.5
+          });
+        });
+      } else if (type === 'pyramids') {
+        // Inverted Floating Golden Monolithic Pyramids
+        const pyrSpots = [{ x: -8, y: 15, z: 0 }, { x: 8, y: 16, z: 0 }, { x: 0, y: 17, z: -8 }, { x: 0, y: 15, z: 8 }];
+        pyrSpots.forEach((spot, idx) => {
+          const pyrGeom = new THREE.ConeGeometry(2.2, 4.5, 4);
+          pyrGeom.rotateX(Math.PI);
+          const pyrMat = new THREE.MeshStandardMaterial({ color: colorHex || 0xf59e0b, metalness: 0.9, roughness: 0.1 });
+          const pyrMesh = new THREE.Mesh(pyrGeom, pyrMat);
+          pyrMesh.position.set(spot.x, spot.y, spot.z);
+
+          const wire = new THREE.LineSegments(new THREE.EdgesGeometry(pyrGeom), new THREE.LineBasicMaterial({ color: 0xffffff }));
+          pyrMesh.add(wire);
+
+          pyrMesh.scale.set(0.001, 0.001, 0.001);
+          dynamicEntitiesGroup.add(pyrMesh);
+          gsap.to(pyrMesh.scale, { x: 1, y: 1, z: 1, duration: 1.4, ease: "back.out(1.7)" });
+
+          dynamicEntities.push({
+            type: 'pyramid',
+            mesh: pyrMesh,
+            baseY: spot.y,
+            phase: idx * 1.2
+          });
+        });
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       Atmospheric Particle Systems (Cyber Sparks, Spores, Smog)
+       -------------------------------------------------------------------------- */
+    function createAtmosphericParticles() {
+      // 1. Cyber Neon Sparks
+      const sparkCount = 300;
+      const sparkGeom = new THREE.BufferGeometry();
+      const sparkPos = new Float32Array(sparkCount * 3);
+      for (let i = 0; i < sparkCount * 3; i += 3) {
+        sparkPos[i] = (Math.random() - 0.5) * 35;
+        sparkPos[i + 1] = Math.random() * 20;
+        sparkPos[i + 2] = (Math.random() - 0.5) * 35;
+      }
+      sparkGeom.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
+      const sparkMat = new THREE.PointsMaterial({
+        color: 0x00f0ff,
+        size: 0.18,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending
+      });
+      particleSystems.cyber = new THREE.Points(sparkGeom, sparkMat);
+      scene.add(particleSystems.cyber);
+
+      // 2. Nature Bio-Spores (Green / Golden Fireflies)
+      const sporeCount = 200;
+      const sporeGeom = new THREE.BufferGeometry();
+      const sporePos = new Float32Array(sporeCount * 3);
+      for (let i = 0; i < sporeCount * 3; i += 3) {
+        sporePos[i] = (Math.random() - 0.5) * 30;
+        sporePos[i + 1] = Math.random() * 12;
+        sporePos[i + 2] = (Math.random() - 0.5) * 30;
+      }
+      sporeGeom.setAttribute('position', new THREE.BufferAttribute(sporePos, 3));
+      const sporeMat = new THREE.PointsMaterial({
+        color: 0x34d399,
+        size: 0.22,
+        transparent: true,
+        opacity: 0.5,
+        blending: THREE.AdditiveBlending
+      });
+      particleSystems.spores = new THREE.Points(sporeGeom, sporeMat);
+      scene.add(particleSystems.spores);
+
+      // 3. Smoke / Anarchy Ash
+      const smokeCount = 250;
+      const smokeGeom = new THREE.BufferGeometry();
+      const smokePos = new Float32Array(smokeCount * 3);
+      for (let i = 0; i < smokeCount * 3; i += 3) {
+        smokePos[i] = (Math.random() - 0.5) * 35;
+        smokePos[i + 1] = Math.random() * 15;
+        smokePos[i + 2] = (Math.random() - 0.5) * 35;
+      }
+      smokeGeom.setAttribute('position', new THREE.BufferAttribute(smokePos, 3));
+      const smokeMat = new THREE.PointsMaterial({
+        color: 0xff3300,
+        size: 0.35,
+        transparent: true,
+        opacity: 0.0, // Active at low order
+        blending: THREE.NormalBlending
+      });
+      particleSystems.smoke = new THREE.Points(smokeGeom, smokeMat);
+      scene.add(particleSystems.smoke);
+    }
+
+    /* ==========================================================================
+       4. GSAP SMOOTH SIMULATION MORPHING ENGINE
+       ========================================================================== */
+    function applyStateTransformation(targetState, duration = 2.0) {
+      playSoundEffect('morph');
+
+      // 1. GSAP Tween Core Values
+      gsap.to(cityState, {
+        natureLevel: targetState.natureLevel,
+        techLevel: targetState.techLevel,
+        orderLevel: targetState.orderLevel,
+        duration: duration,
+        ease: "power2.out",
+        onUpdate: () => {
+          updateUIReadouts();
+          updateLiveSceneParameters();
+        }
+      });
+
+      // 2. Dominant Color & Headline Update
+      cityState.dominantColor = targetState.dominantColor || "#00f0ff";
+      cityState.headline = targetState.headline || cityState.headline;
+
+      // Tween Sky Fog and Directional Lighting
+      const targetColor = new THREE.Color(cityState.dominantColor);
+      const skyBaseColor = new THREE.Color(0x07090e).lerp(targetColor, 0.15);
+
+      gsap.to(scene.background, {
+        r: skyBaseColor.r,
+        g: skyBaseColor.g,
+        b: skyBaseColor.b,
+        duration: duration
+      });
+
+      gsap.to(scene.fog.color, {
+        r: skyBaseColor.r,
+        g: skyBaseColor.g,
+        b: skyBaseColor.b,
+        duration: duration
+      });
+
+      // Dense toxic fog at low order, crisp fog at high order
+      const targetFogDensity = 0.01 + (1.0 - targetState.orderLevel) * 0.035;
+      gsap.to(scene.fog, {
+        density: targetFogDensity,
+        duration: duration
+      });
+
+      // Point Light Tint
+      gsap.to(pointLight.color, {
+        r: targetColor.r,
+        g: targetColor.g,
+        b: targetColor.b,
+        duration: duration
+      });
+
+      // 3. Morph Building Geometry, Selective Demolition & Materials
+      const survivalCount = (targetState.buildingCount !== undefined) 
+        ? targetState.buildingCount 
+        : (targetState.buildingSurvivalRate !== undefined ? Math.round(buildings.length * targetState.buildingSurvivalRate) : buildings.length);
+
+      // Sort buildings by distance from plaza center (closest to center = landmark survivor)
+      const sortedByCenterDist = [...buildings].sort((a, b) => {
+        const distA = Math.sqrt(a.originalPos.x * a.originalPos.x + a.originalPos.z * a.originalPos.z);
+        const distB = Math.sqrt(b.originalPos.x * b.originalPos.x + b.originalPos.z * b.originalPos.z);
+        return distA - distB;
+      });
+
+      const survivorSet = new Set(sortedByCenterDist.slice(0, Math.max(0, survivalCount)));
+
+      buildings.forEach((b) => {
+        const isSurvivor = survivorSet.has(b);
+
+        if (!isSurvivor) {
+          // Collapse / Flatten Demolished Buildings to Ground Rubble
+          gsap.to(b.mesh.scale, {
+            x: 0.001,
+            y: 0.001,
+            z: 0.001,
+            duration: duration * 0.7,
+            ease: "power3.in"
+          });
+          gsap.to(b.wireMat, { opacity: 0, duration: duration * 0.4 });
+          gsap.to(b.ringMat, { opacity: 0, duration: duration * 0.4 });
+          gsap.to(b.foliageGroup.scale, { x: 0.001, y: 0.001, z: 0.001, duration: duration * 0.4 });
+          return;
+        }
+
+        // Standing Survivor Skyscraper
+        let heightMultiplier = 0.6 + (targetState.techLevel * 0.8);
+        let scaleXZ = 1.0;
+        if (survivalCount === 1) {
+          // The single remaining building transforms into a monumental landmark arcology
+          heightMultiplier = 2.0;
+          scaleXZ = 1.4;
+        }
+
+        // Damage & tilt in anarchy (low order)
+        const chaosAngle = (1.0 - targetState.orderLevel) * (Math.random() - 0.5) * 0.35;
+        const chaosRoll = (1.0 - targetState.orderLevel) * (Math.random() - 0.5) * 0.35;
+
+        // Scaling with elastic pop-in
+        gsap.to(b.mesh.scale, {
+          x: scaleXZ,
+          y: heightMultiplier,
+          z: scaleXZ,
+          duration: duration,
+          ease: "elastic.out(1, 0.75)"
+        });
+
+        gsap.to(b.mesh.rotation, {
+          x: chaosAngle,
+          z: chaosRoll,
+          duration: duration,
+          ease: "power2.out"
+        });
+
+        // Shift building material color: Earthy in nature, sleek dark in tech, oxidized/rusted in chaos
+        let targetMatColor = new THREE.Color(0x1c2433);
+        if (targetState.natureLevel > 0.6) {
+          targetMatColor = new THREE.Color(0x2d3a2e).lerp(new THREE.Color(0x403020), 0.3);
+        } else if (targetState.techLevel > 0.7) {
+          targetMatColor = new THREE.Color(0x0a101f);
+        } else if (targetState.orderLevel < 0.3) {
+          targetMatColor = new THREE.Color(0x382218); // Rusted / charred
+        }
+
+        gsap.to(b.mat.color, {
+          r: targetMatColor.r,
+          g: targetMatColor.g,
+          b: targetMatColor.b,
+          duration: duration
+        });
+
+        // Wireframe glow & Hologram Rings
+        gsap.to(b.wireMat, {
+          opacity: targetState.techLevel * 0.85,
+          duration: duration
+        });
+        gsap.to(b.wireMat.color, {
+          r: targetColor.r,
+          g: targetColor.g,
+          b: targetColor.b,
+          duration: duration
+        });
+
+        gsap.to(b.ringMat, {
+          opacity: targetState.techLevel > 0.4 ? (targetState.techLevel * 0.9) : 0.0,
+          duration: duration
+        });
+        gsap.to(b.ringMat.color, {
+          r: targetColor.r,
+          g: targetColor.g,
+          b: targetColor.b,
+          duration: duration
+        });
+
+        // Rooftop Foliage Sprout
+        gsap.to(b.foliageGroup.scale, {
+          x: targetState.natureLevel,
+          y: targetState.natureLevel,
+          z: targetState.natureLevel,
+          duration: duration,
+          ease: "back.out(1.7)"
+        });
+      });
+
+      // 4. Morph Flora / Trees
+      trees.forEach((t) => {
+        const scaleVal = t.baseScale * targetState.natureLevel;
+        gsap.to(t.group.scale, {
+          x: Math.max(0.001, scaleVal),
+          y: Math.max(0.001, scaleVal),
+          z: Math.max(0.001, scaleVal),
+          duration: duration,
+          ease: "back.out(1.5)"
+        });
+
+        // Leaf color hue shift
+        const leafColor = new THREE.Color(0x10b981).lerp(new THREE.Color(0x84cc16), targetState.natureLevel * 0.5);
+        gsap.to(t.foliageMat.color, {
+          r: leafColor.r,
+          g: leafColor.g,
+          b: leafColor.b,
+          duration: duration
+        });
+      });
+
+      // 5. Update Particle System Opacities
+      if (particleSystems.cyber) {
+        gsap.to(particleSystems.cyber.material, {
+          opacity: targetState.techLevel * 0.75,
+          duration: duration
+        });
+      }
+      if (particleSystems.spores) {
+        gsap.to(particleSystems.spores.material, {
+          opacity: targetState.natureLevel * 0.8,
+          duration: duration
+        });
+      }
+      if (particleSystems.smoke) {
+        gsap.to(particleSystems.smoke.material, {
+          opacity: Math.max(0, (1.0 - targetState.orderLevel) * 0.85),
+          duration: duration
+        });
+      }
+
+      // 6. Update Citizens Visors & Clothing Fabrics
+      citizens.forEach((c) => {
+        let citizenTorsoColor = new THREE.Color(0x1e293b);
+        if (targetState.natureLevel > 0.65) {
+          citizenTorsoColor = new THREE.Color(0x1e3a29).lerp(new THREE.Color(0xd97706), 0.2);
+        } else if (targetState.techLevel > 0.75) {
+          citizenTorsoColor = new THREE.Color(0x0f172a);
+        } else if (targetState.orderLevel < 0.3) {
+          citizenTorsoColor = new THREE.Color(0x451a03);
+        }
+
+        gsap.to(c.torsoMat.color, {
+          r: citizenTorsoColor.r,
+          g: citizenTorsoColor.g,
+          b: citizenTorsoColor.b,
+          duration: duration
+        });
+
+        gsap.to(c.visorMat.color, {
+          r: targetColor.r,
+          g: targetColor.g,
+          b: targetColor.b,
+          duration: duration
+        });
+      });
+
+      // 7. Update District Lights, Streetlights, Searchlights, and Window Glows
+      districtLights.forEach((dl) => {
+        gsap.to(dl.light.color, {
+          r: targetColor.r,
+          g: targetColor.g,
+          b: targetColor.b,
+          duration: duration
+        });
+      });
+
+      streetlights.forEach((sl) => {
+        gsap.to(sl.bulbMat.color, {
+          r: targetColor.r,
+          g: targetColor.g,
+          b: targetColor.b,
+          duration: duration
+        });
+        gsap.to(sl.groundMat.color, {
+          r: targetColor.r,
+          g: targetColor.g,
+          b: targetColor.b,
+          duration: duration
+        });
+      });
+
+      searchlights.forEach((sl) => {
+        gsap.to(sl.beamMat.color, {
+          r: targetColor.r,
+          g: targetColor.g,
+          b: targetColor.b,
+          duration: duration
+        });
+      });
+
+      buildingWindows.forEach((wm) => {
+        wm.opacity = 0.65 + targetState.techLevel * 0.3;
+      });
+
+      // 8. Apply Universal Parametric Citizen Rig & Procedural Entities
+      if (targetState.citizenModifier || targetState.anatomy || targetState.wardrobe || targetState.locomotion) {
+        updateUniversalCitizenRig(targetState.citizenModifier || targetState);
+      }
+      if (targetState.proceduralSpawn) {
+        spawnProceduralEntities(targetState.proceduralSpawn);
+      }
+
+      // 9. Refresh Billboard Canvas
+      setBillboardHeadline(cityState.headline, cityState.dominantColor);
+      document.getElementById('live-headline-preview').innerText = `"${cityState.headline}"`;
+    }
+
+    function updateLiveSceneParameters() {
+      // Dynamic Drones Speed & Height
+      drones.forEach((d) => {
+        d.mesh.visible = (cityState.techLevel > 0.1);
+        d.currentSpeed = d.speed * (0.4 + cityState.techLevel * 1.6);
+      });
+
+      // Dynamic Citizens Walking / Running Speed
+      citizens.forEach((c) => {
+        let speedMultiplier = 1.0;
+        if (cityState.orderLevel < 0.3) {
+          speedMultiplier = 2.2; // Panicked / running in anarchy
+        } else if (cityState.natureLevel > 0.75) {
+          speedMultiplier = 0.75; // Leisurely park stroll in solarpunk
+        } else if (cityState.techLevel > 0.8) {
+          speedMultiplier = 1.4; // Cyber hover-strides
+        }
+        c.currentSpeed = c.baseSpeed * speedMultiplier;
+      });
+    }
+
+    /* ==========================================================================
+       5. HUD UI & METRIC UPDATE HELPERS
+       ========================================================================== */
+    function updateUIReadouts() {
+      const naturePct = Math.round(cityState.natureLevel * 100);
+      const techPct = Math.round(cityState.techLevel * 100);
+      const orderPct = Math.round(cityState.orderLevel * 100);
+
+      document.getElementById('val-nature').innerText = `${naturePct}%`;
+      document.getElementById('bar-nature').style.width = `${naturePct}%`;
+
+      document.getElementById('val-tech').innerText = `${techPct}%`;
+      document.getElementById('bar-tech').style.width = `${techPct}%`;
+
+      document.getElementById('val-order').innerText = `${orderPct}%`;
+      document.getElementById('bar-order').style.width = `${orderPct}%`;
+
+      // Update Civilization Paradigm State Tag
+      const stateElement = document.getElementById('civilization-state');
+      if (cityState.natureLevel > 0.75 && cityState.techLevel > 0.6) {
+        stateElement.innerText = "SOLARPUNK ZENITH";
+      } else if (cityState.natureLevel < 0.25 && cityState.techLevel > 0.75 && cityState.orderLevel > 0.7) {
+        stateElement.innerText = "CYBERPUNK DYSTOPIA";
+      } else if (cityState.orderLevel < 0.3) {
+        stateElement.innerText = "WASTELAND COLLAPSE";
+      } else if (cityState.natureLevel > 0.7 && cityState.techLevel < 0.35) {
+        stateElement.innerText = "PRIMITIVE RE-WILDING";
+      } else if (cityState.techLevel > 0.85 && cityState.natureLevel > 0.75) {
+        stateElement.innerText = "BIO-SYNTHETIC UTOPIA";
+      } else {
+        stateElement.innerText = "DYNAMIC EQUILIBRIUM";
+      }
+    }
+
+    /* ==========================================================================
+       6. MAIN ANIMATION RENDER LOOP
+       ========================================================================== */
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const elapsedTime = clock.getElapsedTime();
+
+      // Update Orbit Controls
+      controls.update();
+
+      // Hover and billboard float animation
+      if (billboardMesh) {
+        billboardMesh.position.y = 11 + Math.sin(elapsedTime * 1.5) * 0.3;
+      }
+
+      // Rotate holographic tech halo rings
+      haloRings.forEach((r, idx) => {
+        r.rotation.z += 0.02 * (idx % 2 === 0 ? 1 : -1);
+      });
+
+      // Animate Dynamic Procedural Entities (Tentacles, Crystals, Rings, Black Holes, UFOs, Pyramids)
+      dynamicEntities.forEach((ent) => {
+        if (ent.type === 'tentacle') {
+          ent.joints.forEach((joint, jIdx) => {
+            joint.rotation.z = Math.sin(elapsedTime * ent.speed + ent.phase + jIdx * 0.45) * 0.18;
+            joint.rotation.x = Math.cos(elapsedTime * (ent.speed * 0.8) + ent.phase + jIdx * 0.3) * 0.12;
+          });
+        } else if (ent.type === 'crystal') {
+          ent.mesh.rotation.y += ent.rotSpeed;
+          ent.mesh.position.y = ent.baseY + Math.sin(elapsedTime * 1.5 + ent.phase) * 0.6;
+        } else if (ent.type === 'ring') {
+          ent.mesh.rotation.x += ent.rotSpeedX;
+          ent.mesh.rotation.y += ent.rotSpeedY;
+        } else if (ent.type === 'black_hole') {
+          ent.disk.rotation.z += 0.04;
+          ent.photonRing.rotation.y += 0.02;
+        } else if (ent.type === 'ufo') {
+          ent.group.rotation.y += 0.02;
+          ent.group.position.y = ent.baseY + Math.sin(elapsedTime * 2 + ent.phase) * 0.5;
+        } else if (ent.type === 'pyramid') {
+          ent.mesh.rotation.y += 0.015;
+          ent.mesh.position.y = ent.baseY + Math.sin(elapsedTime * 1.5 + ent.phase) * 0.4;
+        }
+      });
+
+      // Animate Drones
+      drones.forEach((d) => {
+        d.offset += (d.currentSpeed || d.speed) * d.direction;
+        d.mesh.position.x = Math.cos(d.offset) * d.radius;
+        d.mesh.position.z = Math.sin(d.offset) * d.radius;
+        d.mesh.position.y = d.altitude + Math.sin(d.offset * 3) * 0.6;
+        d.mesh.rotation.y = -d.offset + (d.direction > 0 ? Math.PI / 2 : -Math.PI / 2);
+      });
+
+      // Animate Moving Citizens / Pedestrians with Dynamic Behaviors
+      citizens.forEach((c) => {
+        if (c.pauseTimer > 0) {
+          c.pauseTimer -= 0.016;
+          c.mesh.position.y = Math.sin(elapsedTime * 3 + c.walkPhase) * 0.02;
+          c.armLGroup.rotation.x = Math.sin(elapsedTime * 2) * 0.1;
+          c.armRGroup.rotation.x = -Math.sin(elapsedTime * 2) * 0.1;
+          return;
+        }
+
+        const dx = c.targetX - c.currentX;
+        const dz = c.targetZ - c.currentZ;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+
+        if (dist < 0.3) {
+          const nextNode = c.waypoints[Math.floor(Math.random() * c.waypoints.length)];
+          c.targetX = nextNode.x + (Math.random() - 0.5) * 0.8;
+          c.targetZ = nextNode.z + (Math.random() - 0.5) * 0.8;
+
+          if (cityState.natureLevel > 0.7 && Math.random() > 0.75) {
+            c.pauseTimer = 1.5 + Math.random() * 2.0;
+          }
+        } else {
+          const moveStep = c.currentSpeed;
+          const vx = (dx / dist) * moveStep;
+          const vz = (dz / dist) * moveStep;
+
+          c.currentX += vx;
+          c.currentZ += vz;
+          c.mesh.position.set(c.currentX, 0, c.currentZ);
+
+          const targetAngle = Math.atan2(vx, vz);
+          c.mesh.rotation.y = targetAngle;
+
+          // Distinct Behavioral Motion Cycles
+          if (c.behavior === 'dance') {
+            c.mesh.position.y = Math.abs(Math.sin(elapsedTime * 6 + c.walkPhase)) * 0.25;
+            c.armLGroup.rotation.x = Math.sin(elapsedTime * 8) * 1.2;
+            c.armRGroup.rotation.x = -Math.sin(elapsedTime * 8) * 1.2;
+            c.legLGroup.rotation.x = Math.sin(elapsedTime * 6) * 0.4;
+            c.legRGroup.rotation.x = -Math.sin(elapsedTime * 6) * 0.4;
+          } else if (c.behavior === 'float') {
+            c.mesh.position.y = 0.8 + Math.sin(elapsedTime * 3 + c.walkPhase) * 0.25;
+            c.legLGroup.rotation.x = 0.2;
+            c.legRGroup.rotation.x = -0.2;
+            c.armLGroup.rotation.z = -0.4;
+            c.armRGroup.rotation.z = 0.4;
+          } else if (c.behavior === 'march') {
+            const marchPhase = elapsedTime * 9;
+            c.legLGroup.rotation.x = Math.sin(marchPhase) * 0.85;
+            c.legRGroup.rotation.x = -Math.sin(marchPhase) * 0.85;
+            c.armLGroup.rotation.x = -Math.sin(marchPhase) * 0.75;
+            c.armRGroup.rotation.x = Math.sin(marchPhase) * 0.75;
+            c.mesh.position.y = Math.abs(Math.sin(marchPhase * 2)) * 0.05;
+          } else if (c.behavior === 'quadruped' || c.behavior === '4_legs') {
+            // Quadruped 4-Legged Cyber Trot Gait
+            c.walkPhase += c.currentSpeed * 28;
+            c.armLGroup.rotation.x = Math.sin(c.walkPhase) * 0.7;
+            c.legRGroup.rotation.x = -Math.sin(c.walkPhase) * 0.7;
+            c.armRGroup.rotation.x = -Math.sin(c.walkPhase) * 0.7;
+            c.legLGroup.rotation.x = Math.sin(c.walkPhase) * 0.7;
+            c.mesh.position.y = Math.abs(Math.sin(c.walkPhase * 2)) * 0.03;
+          } else {
+            // Default walk
+            c.walkPhase += c.currentSpeed * 24;
+            c.legLGroup.rotation.x = Math.sin(c.walkPhase) * 0.65;
+            c.legRGroup.rotation.x = -Math.sin(c.walkPhase) * 0.65;
+            c.armLGroup.rotation.x = -Math.sin(c.walkPhase) * 0.5;
+            c.armRGroup.rotation.x = Math.sin(c.walkPhase) * 0.5;
+            c.mesh.position.y = Math.abs(Math.sin(c.walkPhase * 2)) * 0.04;
+          }
+        }
+      });
+
+      // Animate tree wind sway
+      trees.forEach((t) => {
+        t.group.rotation.z = Math.sin(elapsedTime * 2 + t.seed) * 0.04 * cityState.natureLevel;
+      });
+
+      // Particle Drift
+      if (particleSystems.cyber) {
+        particleSystems.cyber.rotation.y = elapsedTime * 0.04;
+      }
+      if (particleSystems.spores) {
+        particleSystems.spores.rotation.y = -elapsedTime * 0.025;
+      }
+      if (particleSystems.smoke) {
+        particleSystems.smoke.position.y = (elapsedTime * 1.2) % 15;
+      }
+
+      // Animate Volumetric Searchlights & Sweeping Sky Beams
+      searchlights.forEach((s) => {
+        s.pivot.rotation.y = elapsedTime * s.speed + s.phase;
+      });
+
+      // Render Dynamic Holographic Billboard (real-time progress bar & waveforms)
+      renderBillboardCanvas(elapsedTime);
+
+      renderer.render(scene, camera);
+    }
+
+    /* ==========================================================================
+       7. GEMINI 2.5 FLASH API & LOCAL FALLBACK NLP ENGINE
+       ========================================================================== */
+    const GEMINI_API_STORAGE_KEY = '2127_GEMINI_API_KEY';
+
+    function getStoredApiKey() {
+      return localStorage.getItem(GEMINI_API_STORAGE_KEY) || '';
+    }
+
+    function saveApiKey() {
+      const key = document.getElementById('api-key-input').value.trim();
+      if (key) {
+        localStorage.setItem(GEMINI_API_STORAGE_KEY, key);
+        updateAIStatusDisplay(true);
+      }
+      toggleApiModal(false);
+    }
+
+    function clearApiKey() {
+      localStorage.removeItem(GEMINI_API_STORAGE_KEY);
+      document.getElementById('api-key-input').value = '';
+      updateAIStatusDisplay(false);
+      toggleApiModal(false);
+    }
+
+    function updateAIStatusDisplay(hasKey) {
+      const statusText = document.getElementById('ai-status-text');
+      if (hasKey) {
+        statusText.innerText = "ONLINE // GEMINI 2.5 FLASH ACTIVE";
+        statusText.className = "text-cyber-cyan font-semibold";
+      } else {
+        statusText.innerText = "ONLINE // LOCAL ENGINE ACTIVE";
+        statusText.className = "text-emerald-400 font-semibold";
+      }
+    }
+
+    // Modal UI toggles
+    function toggleApiModal(show) {
+      const modal = document.getElementById('api-modal');
+      if (show) {
+        document.getElementById('api-key-input').value = getStoredApiKey();
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    function toggleKeyVisibility() {
+      const input = document.getElementById('api-key-input');
+      const icon = document.getElementById('eye-icon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        input.type = 'password';
+        icon.setAttribute('data-lucide', 'eye');
+      }
+      lucide.createIcons();
+    }
+
+    document.getElementById('btn-api-modal').addEventListener('click', () => toggleApiModal(true));
+
+    /* --------------------------------------------------------------------------
+       LLM Inference with Gemini 2.5 Flash Structured JSON Output
+       -------------------------------------------------------------------------- */
+    async function queryGeminiSocietalAI(decreePrompt) {
+      const apiKey = getStoredApiKey();
+
+      // If no API key, use instant smart local NLP engine
+      if (!apiKey) {
+        console.log("No Gemini API key provided. Using built-in 2127 Local Semantic Parser.");
+        return localSemanticParser(decreePrompt);
+      }
+
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+      const systemPrompt = `You are the 2127 Central Societal AI governing a futuristic metropolis in the year 2127. 
+A citizen or governor transmits an arbitrary decree, law, or wild vision. 
+You must analyze this decree and output structured numerical values and zero-shot procedural descriptors representing the transformation of the city in 2127:
+- natureLevel: 0.0 (concrete wasteland/barren) to 1.0 (dense vertical forest/biophilic utopia)
+- techLevel: 0.0 (primitive/analog collapse) to 1.0 (hyper-advanced cyberpunk/quantum AI network)
+- orderLevel: 0.0 (total anarchy/war/chaos/smog) to 1.0 (hyper-clean surveillance state/absolute regulation)
+- headline: Dramatic, punchy breaking news headline in 10 words or less broadcast across sky-billboards.
+- dominantColor: Hex color code representing the city's mood (e.g. #00f0ff, #10b981, #ef4444, #a855f7, #ffd700).
+- anatomy: Universal parametric anatomy:
+    - spinePitch: Number in degrees (0 for upright bipedal, 70-90 for 4-legged quadruped or beast crawl)
+    - heightScale: Number (0.3 for micro to 2.5 for giant)
+    - widthScale: Number (0.3 to 2.5)
+    - hoverElevation: Number (0.0 for ground, 0.8+ for floating/anti-gravity)
+- wardrobe: Headwear / props:
+    - primitive: "none" | "green_hat" | "top_hat" | "halo" | "horns" | "helmet" | "box" | "cone" | "sphere" | "torus"
+    - color: Hex color string
+- locomotion: Gait & mobility:
+    - gaitType: "walk" | "march" | "dance" | "float" | "quadruped"
+    - speedMultiplier: Number (0.3 to 3.0)
+- proceduralSpawn: Object with:
+    - type: "none" | "tentacles" | "crystals" | "energy_rings"
+    - color: Hex color for the spawned procedural entity`;
+
+      const requestBody = {
+        contents: [
+          {
+            parts: [
+              { text: `CITIZEN DECREE: "${decreePrompt}"` }
+            ]
+          }
+        ],
+        systemInstruction: {
+          parts: [
+            { text: systemPrompt }
+          ]
+        },
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              natureLevel: { type: "NUMBER", description: "0.0 to 1.0" },
+              techLevel: { type: "NUMBER", description: "0.0 to 1.0" },
+              orderLevel: { type: "NUMBER", description: "0.0 to 1.0" },
+              headline: { type: "STRING", description: "Dramatic 2127 headline in 10 words or less" },
+              dominantColor: { type: "STRING", description: "Hex color code" },
+              buildingCount: { type: "NUMBER", description: "Exact number of buildings standing (e.g. 1 for 'only one building left', 0 for ground zero)" },
+              buildingSurvivalRate: { type: "NUMBER", description: "0.0 to 1.0 fraction of skyscrapers standing" },
+              anatomy: {
+                type: "OBJECT",
+                properties: {
+                  spinePitch: { type: "NUMBER", description: "Spine tilt in degrees: 0 for biped, 75 for quadruped" },
+                  heightScale: { type: "NUMBER", description: "Height multiplier: 1.35 for 1.8m+ tall, 0.7 for short" },
+                  widthScale: { type: "NUMBER", description: "Width multiplier" },
+                  hoverElevation: { type: "NUMBER", description: "Levitation height above ground" }
+                }
+              },
+              wardrobe: {
+                type: "OBJECT",
+                properties: {
+                  primitive: { type: "STRING", enum: ["none", "green_hat", "top_hat", "halo", "horns", "helmet", "box", "cone", "sphere", "torus"] },
+                  color: { type: "STRING" }
+                }
+              },
+              locomotion: {
+                type: "OBJECT",
+                properties: {
+                  gaitType: { type: "STRING", enum: ["walk", "march", "dance", "float", "quadruped"] },
+                  speedMultiplier: { type: "NUMBER" }
+                }
+              },
+              proceduralSpawn: {
+                type: "OBJECT",
+                properties: {
+                  type: { type: "STRING", enum: ["none", "tentacles", "crystals", "energy_rings"] },
+                  color: { type: "STRING" }
+                }
+              }
+            },
+            required: ["natureLevel", "techLevel", "orderLevel", "headline", "dominantColor"]
+          }
+        }
+      };
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+          const errData = await response.text();
+          console.warn("Gemini API Error:", errData);
+          return localSemanticParser(decreePrompt);
+        }
+
+        const data = await response.json();
+        const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!candidate) throw new Error("No response text from Gemini");
+
+        const parsed = JSON.parse(candidate);
+        return {
+          natureLevel: Math.max(0, Math.min(1, parsed.natureLevel ?? 0.5)),
+          techLevel: Math.max(0, Math.min(1, parsed.techLevel ?? 0.5)),
+          orderLevel: Math.max(0, Math.min(1, parsed.orderLevel ?? 0.5)),
+          headline: parsed.headline || "CENTRAL AI UPDATES 2127 CITY DIRECTIVE",
+          dominantColor: parsed.dominantColor || "#00f0ff",
+          buildingCount: parsed.buildingCount,
+          buildingSurvivalRate: parsed.buildingSurvivalRate,
+          anatomy: parsed.anatomy || { spinePitch: 0, heightScale: 1.0, widthScale: 1.0, hoverElevation: 0.0 },
+          wardrobe: parsed.wardrobe || { primitive: "none", color: "#00f0ff" },
+          locomotion: parsed.locomotion || { gaitType: "walk", speedMultiplier: 1.0 },
+          proceduralSpawn: parsed.proceduralSpawn || { type: 'none' }
+        };
+      } catch (err) {
+        console.error("Gemini invocation failed, falling back to local engine:", err);
+        return localSemanticParser(decreePrompt);
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       Smart Local Semantic Parser (Guaranteed Offline / Zero-Shot Universal Reaction Fallback)
+       -------------------------------------------------------------------------- */
+    function localSemanticParser(prompt) {
+      const lower = prompt.toLowerCase();
+      let nature = 0.5;
+      let tech = 0.5;
+      let order = 0.5;
+      let color = "#00f0ff";
+      let headline = `2127 DECREE ENACTED: "${prompt.slice(0, 45)}..."`;
+
+      // Universal Parametric Rig Structure
+      let buildingCount = undefined;
+      let buildingSurvivalRate = undefined;
+      let anatomy = { spinePitch: 0, heightScale: 1.0, widthScale: 1.0, hoverElevation: 0.0 };
+      let wardrobe = { primitive: 'none', color: '#00f0ff' };
+      let locomotion = { gaitType: 'walk', speedMultiplier: 1.0 };
+      let proceduralSpawn = { type: 'none', color: color };
+
+      // 0. Building Density & Single-Building Monolith Detection
+      if (/(only one building|only 1 building|single building|one building left|one skyscraper|lone tower|sole arcology|single tower|one monolith)/i.test(lower)) {
+        buildingCount = 1;
+        headline = "THE LAST CITADEL: ONLY A SINGLE ARCOLOGY REMAINS IN 2127";
+        color = "#f59e0b";
+        order = 0.4;
+      } else if (/(no buildings|flatten the city|destroy all buildings|ground zero|level the city|demolish everything|wipe out buildings|wipe out all buildings)/i.test(lower)) {
+        buildingCount = 0;
+        headline = "METROPOLIS FLATTENED: 2127 GROUND ZERO DESOLATION";
+        color = "#ef4444";
+        order = 0.1;
+      } else if (/(half the buildings|few buildings|sparse skyline|some buildings)/i.test(lower)) {
+        buildingSurvivalRate = 0.35;
+      }
+
+      // 1. Headwear Detection
+      if (/(green hat|green cap|emerald hat)/i.test(lower)) {
+        wardrobe = { primitive: 'green_hat', color: '#22c55e' };
+        headline = "MANDATORY GREEN HEADWEAR EDICT ENFORCED ACROSS 2127";
+        color = "#22c55e";
+        order = 0.9;
+      } else if (/(top hat|hat|cap|beret)/i.test(lower)) {
+        wardrobe = { primitive: 'top_hat', color: color };
+        headline = "NEW CITIZEN HEADWEAR PROTOCOL IN EFFECT";
+      } else if (/(halo|angel|saint|holy)/i.test(lower)) {
+        wardrobe = { primitive: 'halo', color: '#ffd700' };
+        locomotion.gaitType = 'float';
+        anatomy.hoverElevation = 0.8;
+        headline = "HOLOGRAPHIC ENERGY HALOS GRANTED TO ALL CITIZENS";
+        color = "#ffd700";
+      } else if (/(horn|horns|devil|cyber horn)/i.test(lower)) {
+        wardrobe = { primitive: 'horns', color: '#ff0055' };
+        locomotion.gaitType = 'dance';
+        headline = "NEON HORN CYBER-IMPLANTS DISTRIBUTED IN SECTOR 7";
+        color = "#ff0055";
+      } else if (/(cube|box|square helmet)/i.test(lower)) {
+        wardrobe = { primitive: 'box', color: '#38bdf8' };
+        headline = "QUANTUM CUBE NEURAL HELMETS DEPLOYED ACROSS METROPOLIS";
+      } else if (/(cone|dunce|spire hat)/i.test(lower)) {
+        wardrobe = { primitive: 'cone', color: '#f59e0b' };
+      } else if (/(sphere|orb helmet|gold dome)/i.test(lower)) {
+        wardrobe = { primitive: 'sphere', color: '#eab308' };
+      }
+
+      // 2. Biometric Height & Scale
+      if (/(1\.8m|2m|3m|tall|giant|height|grow tall|longer legs)/i.test(lower)) {
+        anatomy.heightScale = 1.35;
+        headline = "GENETIC BIOMETRIC MANDATE SETS MINIMUM CITIZEN HEIGHT TO 1.8M";
+        order = Math.max(order, 0.85);
+        tech = Math.max(tech, 0.75);
+      } else if (/(tiny|small|dwarf|short|micro)/i.test(lower)) {
+        anatomy.heightScale = 0.65;
+        anatomy.widthScale = 0.7;
+        headline = "MICRO-CITIZEN DIRECTIVE ACTIVATED ACROSS ALL DISTRICTS";
+      } else if (/(fat|wide|broad|heavy|bulk)/i.test(lower)) {
+        anatomy.widthScale = 1.6;
+      }
+
+      // 3. Posture & Quadruped Gait
+      if (/(4 leg|4-leg|four leg|four-leg|quadruped|crawl|beast|animal walk|all people walk with 4 legs)/i.test(lower)) {
+        anatomy.spinePitch = 74;
+        locomotion.gaitType = 'quadruped';
+        headline = "CYBERNETIC 4-LEGGED QUADRUPED PROTOCOL ENACTED IN 2127";
+        color = "#f43f5e";
+        tech = Math.max(tech, 0.85);
+      } else if (/(march|parade|soldier|military|in unison)/i.test(lower)) {
+        locomotion.gaitType = 'march';
+        order = Math.max(order, 0.85);
+      } else if (/(dance|party|rave|celebrat)/i.test(lower)) {
+        locomotion.gaitType = 'dance';
+      } else if (/(float|fly|levitat|antigravity|zero gravity|moon bounce)/i.test(lower)) {
+        locomotion.gaitType = 'float';
+        anatomy.hoverElevation = 1.0;
+      }
+
+      if (/(fast|speed|run|dash|hyper)/i.test(lower)) {
+        locomotion.speedMultiplier = 2.0;
+      } else if (/(slow|crawl|freeze|leisurely)/i.test(lower)) {
+        locomotion.speedMultiplier = 0.5;
+      }
+
+      // 4. Zero-Shot Procedural Entity Spawning Detection
+      if (/(tentacle|tentacles|squid|octopus|creature)/i.test(lower)) {
+        proceduralSpawn = { type: 'tentacles', color: '#a855f7' };
+        headline = "BIOLUMINESCENT TENTACLES EMERGE ACROSS CITY CONDUITS";
+        color = "#a855f7";
+      } else if (/(crystal|crystals|monolith|monoliths|gem|diamond|obelisk)/i.test(lower)) {
+        proceduralSpawn = { type: 'crystals', color: '#818cf8' };
+        headline = "FLOATING CRYSTAL MONOLITHS HOVER OVER DISTRICT SPARK";
+        color = "#818cf8";
+      } else if (/(ring|rings|planetary ring|orbit ring|portal)/i.test(lower)) {
+        proceduralSpawn = { type: 'energy_rings', color: '#f59e0b' };
+        headline = "ORBITAL ENERGY CONDUIT RINGS DEPLOYED ABOVE SKYLINE";
+        color = "#f59e0b";
+      }
+
+      // 5. Environmental Keywords
+      if (/(nature|forest|tree|green|garden|plant|eco|wild|flora|bio|solarpunk|coral|algae)/i.test(lower)) {
+        nature += 0.45;
+        if (color === "#00f0ff") color = "#10b981";
+      }
+      if (/(concrete|asphalt|pollut|burn|wasteland|desolat|extinct|cut down)/i.test(lower)) {
+        nature -= 0.45;
+      }
+      if (/(ai|cyber|robot|drone|neon|quantum|matrix|hologram|comput|synth|laser|digital|tech)/i.test(lower)) {
+        tech += 0.45;
+      }
+      if (/(primitive|analog|ban tech|disable|smash|emp|stone age|manual)/i.test(lower)) {
+        tech -= 0.45;
+      }
+      if (/(law|order|surveillance|police|regulate|enforce|curfew|clean|security|control|mandate)/i.test(lower)) {
+        order += 0.45;
+      }
+      if (/(anarchy|chaos|rebel|riot|freedom|destroy|war|overthrow|smuggle|smog|decay)/i.test(lower)) {
+        order -= 0.45;
+        if (color === "#00f0ff") color = "#ef4444";
+      }
+
+      // Clamp
+      nature = Math.max(0.05, Math.min(0.95, nature));
+      tech = Math.max(0.05, Math.min(0.95, tech));
+      order = Math.max(0.05, Math.min(0.95, order));
+
+      return {
+        natureLevel: nature,
+        techLevel: tech,
+        orderLevel: order,
+        headline: headline,
+        dominantColor: color,
+        buildingCount: buildingCount,
+        buildingSurvivalRate: buildingSurvivalRate,
+        anatomy: anatomy,
+        wardrobe: wardrobe,
+        locomotion: locomotion,
+        proceduralSpawn: proceduralSpawn
+      };
+    }
+
+    // Global quick helper for Zero-Shot UI Chips
+    window.submitWildPrompt = function(promptText) {
+      if (decreeInput) decreeInput.value = promptText;
+      playSoundEffect('click');
+      handleDecreeSubmission(promptText);
+    };
+
+    /* ==========================================================================
+       8. USER INTERACTION, REAL-TIME PROGRESS BILLBOARD & AUTO-GUEST STREAM
+       ========================================================================== */
+    const decreeForm = document.getElementById('decree-form');
+    const decreeInput = document.getElementById('decree-input');
+    const loadingOverlay = document.getElementById('loading-overlay');
+
+    // Exhibition Auto-Guest Prompt Stream Queue
+    const GUEST_PROMPTS_QUEUE = [
+      "Ban all fossil machinery and construct vertical bioluminescent algae towers to cleanse the atmosphere",
+      "Deploy orbital defense drones and mandate 24/7 AI productivity scans across all sectors",
+      "Rewild downtown sector into a self-sustaining vertical redwood canopy with open bio-sanctuaries",
+      "Synthesize all architecture with photosynthetic living coral and solar glass terraces",
+      "Dismantle central surveillance towers and distribute power cells to underground factions",
+      "Construct orbital solar mirrors to eliminate winter nights and generate perpetual clean energy",
+      "Fuse citizen neural interfaces with the metropolis AI network to optimize power consumption",
+      "Release atmospheric scrubber nanites to clear toxic smog and restore blue sky horizons"
+    ];
+    let guestPromptIndex = 0;
+    let autoStreamEnabled = true;
+    let autoStreamCountdown = 14;
+    let isDecreeProcessing = false;
+
+    async function handleDecreeSubmission(promptText) {
+      if (!promptText || promptText.trim().length === 0 || isDecreeProcessing) return;
+      isDecreeProcessing = true;
+
+      playSoundEffect('transmit');
+      loadingOverlay.classList.remove('opacity-0');
+      document.getElementById('btn-transmit').disabled = true;
+
+      // 1. Activate Real-Time Billboard Processing Mode with Progress Bar
+      setBillboardProcessing(promptText, "INGESTING CITIZEN SIGNAL...");
+
+      // 2. Smooth progression tween on the billboard progress bar while awaiting AI
+      const progressObj = { val: 0.05 };
+      const progressTween = gsap.to(progressObj, {
+        val: 0.85,
+        duration: 2.4,
+        ease: "power1.inOut",
+        onUpdate: () => {
+          billboardState.progress = progressObj.val;
+          if (progressObj.val > 0.65) {
+            billboardState.statusStage = "COMPUTING PROCEDURAL LERP DIRECTIVE...";
+          } else if (progressObj.val > 0.35) {
+            billboardState.statusStage = "EVALUATING 2127 ECOLOGICAL & CYBER VECTORS...";
+          } else {
+            billboardState.statusStage = "DECODING CITIZEN SEMANTICS & LAWS...";
+          }
+        }
+      });
+
+      try {
+        const result = await queryGeminiSocietalAI(promptText);
+        progressTween.kill();
+
+        // Animate remaining progress smoothly to 100%
+        await new Promise((resolve) => {
+          gsap.to(billboardState, {
+            progress: 1.0,
+            duration: 0.45,
+            ease: "power2.out",
+            onStart: () => {
+              billboardState.statusStage = "100% // DECREE ENACTED & VALIDATED";
+            },
+            onComplete: resolve
+          });
+        });
+
+        // Brief dramatic pause for visitors to see completed progress bar
+        await new Promise(r => setTimeout(r, 400));
+
+        // Switch billboard back to Headline Broadcast mode with new headline
+        setBillboardHeadline(result.headline, result.dominantColor);
+
+        // Update and Pop-up Real-Time Cyber Telemetry & Vector Breakdown Decoder
+        updateDebugPanel(promptText, result);
+
+        // Morph 3D metropolis parameters
+        applyStateTransformation(result, 2.2);
+      } catch (err) {
+        console.error("Simulation error:", err);
+        progressTween.kill();
+        setBillboardHeadline("CENTRAL AI UPDATED DIRECTIVE", "#00f0ff");
+      } finally {
+        loadingOverlay.classList.add('opacity-0');
+        document.getElementById('btn-transmit').disabled = false;
+        isDecreeProcessing = false;
+        // Reset countdown for next auto-stream
+        autoStreamCountdown = 16;
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       Real-Time Telemetry & Vector Breakdown Decoder Panel
+       -------------------------------------------------------------------------- */
+    window.toggleDebugPanel = function(show) {
+      const panel = document.getElementById('debug-panel');
+      if (!panel) return;
+      if (show === undefined) {
+        panel.classList.toggle('hidden');
+      } else if (show) {
+        panel.classList.remove('hidden');
+      } else {
+        panel.classList.add('hidden');
+      }
+    };
+
+    const debugToggleBtn = document.getElementById('btn-debug-toggle');
+    if (debugToggleBtn) {
+      debugToggleBtn.addEventListener('click', () => {
+        playSoundEffect('click');
+        toggleDebugPanel();
+      });
+    }
+
+    function updateDebugPanel(promptText, state) {
+      const promptEl = document.getElementById('debug-prompt-text');
+      const bldgEl = document.getElementById('debug-building-count');
+      const anatomyEl = document.getElementById('debug-anatomy');
+      const wardrobeEl = document.getElementById('debug-wardrobe');
+      const locomotionEl = document.getElementById('debug-locomotion');
+      const spawnerEl = document.getElementById('debug-spawner');
+      const moodEl = document.getElementById('debug-mood');
+      const engineTag = document.getElementById('debug-engine-tag');
+      const bizarreDesc = document.getElementById('debug-bizarre-desc');
+
+      const hasApiKey = !!getStoredApiKey();
+      if (engineTag) {
+        engineTag.innerText = hasApiKey ? "GEMINI 2.5 FLASH API" : "LOCAL ZERO-SHOT NLP";
+        engineTag.className = hasApiKey ? "text-[9px] px-1.5 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/40" : "text-[9px] px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-500/40";
+      }
+
+      if (promptEl) promptEl.innerText = `"${promptText}"`;
+
+      // 1. Building Density
+      const bCount = (state.buildingCount !== undefined) ? `${state.buildingCount} / 28 Standing` : (state.buildingSurvivalRate !== undefined ? `${Math.round(state.buildingSurvivalRate * 100)}% Skyline` : "28 / 28 Standing (Full)");
+      if (bldgEl) bldgEl.innerText = bCount;
+
+      // 2. Anatomy
+      const anat = state.anatomy || {};
+      const spine = anat.spinePitch !== undefined ? `${anat.spinePitch}°` : "0°";
+      const height = anat.heightScale !== undefined ? `${anat.heightScale}x` : "1.0x";
+      const hover = anat.hoverElevation ? ` | Hover: ${anat.hoverElevation}m` : "";
+      if (anatomyEl) anatomyEl.innerText = `Spine: ${spine} | Height: ${height}${hover}`;
+
+      // 3. Wardrobe
+      const ward = state.wardrobe || {};
+      const prim = ward.primitive || "none";
+      const primColor = ward.color || "#00f0ff";
+      if (wardrobeEl) {
+        wardrobeEl.innerHTML = `<span style="color: ${primColor}; font-weight: bold;">${prim}</span>`;
+      }
+
+      // 4. Locomotion
+      const loco = state.locomotion || {};
+      const gait = loco.gaitType || "walk";
+      const spd = loco.speedMultiplier !== undefined ? `${loco.speedMultiplier}x` : "1.0x";
+      if (locomotionEl) locomotionEl.innerText = `${gait} (${spd} speed)`;
+
+      // 5. Spawner
+      const spawn = state.proceduralSpawn || {};
+      const sType = spawn.type || "none";
+      const sColor = spawn.color || "#a855f7";
+      if (spawnerEl) {
+        spawnerEl.innerHTML = `<span style="color: ${sColor}; font-weight: bold;">${sType}</span>`;
+      }
+
+      // 6. Mood
+      const naturePct = Math.round((state.natureLevel || 0.5) * 100);
+      const techPct = Math.round((state.techLevel || 0.5) * 100);
+      const orderPct = Math.round((state.orderLevel || 0.5) * 100);
+      if (moodEl) moodEl.innerText = `${state.dominantColor || '#00f0ff'} (Bio: ${naturePct}%, Tech: ${techPct}%, Ord: ${orderPct}%)`;
+
+      // 7. Bizarre Concept Description
+      if (bizarreDesc) {
+        bizarreDesc.innerText = `Synthesized universal mathematical vector with zero manual code changes. Rendered seamlessly via Three.js parametric matrices.`;
+      }
+
+      // Open debug panel briefly on submission
+      toggleDebugPanel(true);
+    }
+
+    decreeForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const val = decreeInput.value.trim();
+      if (val) {
+        handleDecreeSubmission(val);
+        decreeInput.value = '';
+      }
+    });
+
+    // Pause auto-stream while user is typing
+    decreeInput.addEventListener('input', () => {
+      autoStreamCountdown = 25;
+    });
+
+    // Auto-Stream Guest Prompts Loop (Exhibition Mode)
+    setInterval(() => {
+      if (!autoStreamEnabled || isDecreeProcessing) return;
+
+      autoStreamCountdown--;
+      const textSpan = document.getElementById('auto-stream-text');
+      if (textSpan) {
+        textSpan.innerText = `Auto-Guest: ${autoStreamCountdown}s`;
+      }
+
+      if (autoStreamCountdown <= 0) {
+        autoStreamCountdown = 16;
+        const nextPrompt = GUEST_PROMPTS_QUEUE[guestPromptIndex % GUEST_PROMPTS_QUEUE.length];
+        guestPromptIndex++;
+        
+        decreeInput.value = nextPrompt;
+        handleDecreeSubmission(nextPrompt);
+      }
+    }, 1000);
+
+    // Auto-stream toggle button
+    const autoStreamBtn = document.getElementById('btn-auto-stream');
+    if (autoStreamBtn) {
+      autoStreamBtn.addEventListener('click', () => {
+        autoStreamEnabled = !autoStreamEnabled;
+        const textSpan = document.getElementById('auto-stream-text');
+        if (autoStreamEnabled) {
+          autoStreamCountdown = 12;
+          if (textSpan) textSpan.innerText = `Auto-Guest: 12s`;
+          autoStreamBtn.classList.remove('opacity-50', 'border-slate-700');
+          autoStreamBtn.classList.add('border-emerald-500/60', 'text-emerald-300');
+          playSoundEffect('click');
+        } else {
+          if (textSpan) textSpan.innerText = `Auto-Guest: Off`;
+          autoStreamBtn.classList.add('opacity-50', 'border-slate-700');
+          autoStreamBtn.classList.remove('border-emerald-500/60', 'text-emerald-300');
+        }
+      });
+    }
+
+    // Preset button handler
+    window.applyPreset = function(presetKey) {
+      const p = PRESETS[presetKey];
+      if (p) {
+        playSoundEffect('click');
+        autoStreamCountdown = 20; // reset auto stream timer
+        applyStateTransformation(p, 2.0);
+      }
+    };
+
+    // Camera control buttons
+    document.getElementById('btn-reset-cam').addEventListener('click', () => {
+      playSoundEffect('click');
+      resetCameraPosition();
+    });
+
+    const rotateBtn = document.getElementById('btn-auto-rotate');
+    const rotateStatus = document.getElementById('rotate-status');
+    rotateBtn.addEventListener('click', () => {
+      controls.autoRotate = !controls.autoRotate;
+      rotateStatus.innerText = controls.autoRotate ? "Orbit: On" : "Orbit: Off";
+      rotateBtn.classList.toggle('border-cyber-cyan', controls.autoRotate);
+      playSoundEffect('click');
+    });
+
+    /* --------------------------------------------------------------------------
+       Lighting Atmosphere Mode Controller (Ultra-Neon / Solarpunk Daylight / Cyber Dusk)
+       -------------------------------------------------------------------------- */
+    const LIGHTING_MODES = [
+      { key: 'ultra', label: 'Light: Ultra', exposure: 1.45, bg: '#07090e', fog: '#07090e', dir: 2.2, hemi: 1.3, point: 4.8, distInt: 3.4 },
+      { key: 'sun', label: 'Light: Sun', exposure: 1.6, bg: '#0284c7', fog: '#38bdf8', dir: 2.8, hemi: 1.8, point: 3.2, distInt: 2.2 },
+      { key: 'sunset', label: 'Light: Dusk', exposure: 1.5, bg: '#3b0764', fog: '#581c87', dir: 2.4, hemi: 1.4, point: 4.6, distInt: 3.8 }
+    ];
+    let lightModeIdx = 0;
+
+    function applyLightingMode(cfg) {
+      const textSpan = document.getElementById('light-mode-text');
+      if (textSpan) textSpan.innerText = cfg.label;
+
+      gsap.to(renderer, { toneMappingExposure: cfg.exposure, duration: 1.2 });
+      scene.background = new THREE.Color(cfg.bg);
+      scene.fog.color = new THREE.Color(cfg.fog);
+
+      gsap.to(dirLight, { intensity: cfg.dir, duration: 1.2 });
+      gsap.to(hemiLight, { intensity: cfg.hemi, duration: 1.2 });
+      gsap.to(pointLight, { intensity: cfg.point, duration: 1.2 });
+
+      districtLights.forEach((dl) => {
+        gsap.to(dl.light, { intensity: cfg.distInt, duration: 1.2 });
+      });
+    }
+
+    const lightModeBtn = document.getElementById('btn-light-mode');
+    if (lightModeBtn) {
+      lightModeBtn.addEventListener('click', () => {
+        lightModeIdx = (lightModeIdx + 1) % LIGHTING_MODES.length;
+        applyLightingMode(LIGHTING_MODES[lightModeIdx]);
+        playSoundEffect('click');
+      });
+    }
+
+    /* --------------------------------------------------------------------------
+       Web Speech API (Speech-to-Text Voice Input for Exhibitions)
+       -------------------------------------------------------------------------- */
+    const voiceBtn = document.getElementById('btn-voice');
+    const micIcon = document.getElementById('mic-icon');
+    let recognition = null;
+    let isRecording = false;
+
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        isRecording = true;
+        autoStreamCountdown = 30; // give speaker plenty of time
+        voiceBtn.classList.add('border-red-500', 'text-red-400', 'bg-red-950/50', 'animate-pulse');
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        decreeInput.value = transcript;
+        handleDecreeSubmission(transcript);
+      };
+
+      recognition.onerror = (event) => {
+        console.warn("Speech recognition error:", event.error);
+        stopRecording();
+      };
+
+      recognition.onend = () => {
+        stopRecording();
+      };
+    } else {
+      voiceBtn.title = "Voice recognition not supported in this browser";
+      voiceBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      voiceBtn.classList.remove('border-red-500', 'text-red-400', 'bg-red-950/50', 'animate-pulse');
+    }
+
+    voiceBtn.addEventListener('click', () => {
+      if (!recognition) return;
+      if (!isRecording) {
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        recognition.stop();
+      }
+    });
+
+    /* ==========================================================================
+       9. INITIALIZATION
+       ========================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      init3D();
+      updateUIReadouts();
+      updateAIStatusDisplay(Boolean(getStoredApiKey()));
+
+      // Initial welcoming decree animation after 0.5s
+      setTimeout(() => {
+        applyStateTransformation({
+          natureLevel: 0.5,
+          techLevel: 0.7,
+          orderLevel: 0.8,
+          headline: "WELCOME TO 2127: TRANSMIT CITIZEN DECREES TO SHAPE THE METROPOLIS",
+          dominantColor: "#00f0ff"
+        }, 1.5);
+      }, 500);
+    });
+  </script>
+</body>
+</html>

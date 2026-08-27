@@ -1,0 +1,19 @@
+{
+  "name": "2127-world-shaper",
+  "version": "1.0.0",
+  "description": "2127 World Shaper - 3D Societal Simulation Prototype",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx serve . -l 8080",
+    "start": "npx serve . -l 8080"
+  },
+  "keywords": [
+    "threejs",
+    "gsap",
+    "gemini",
+    "simulation",
+    "2127"
+  ],
+  "author": "",
+  "license": "MIT"
+}
