@@ -124,3 +124,8 @@
 - [ ] Live microphone audio waveform visualizer rendered directly onto the billboard during speech.
 - [ ] External `.glb` / Blender asset loader with Draco compression.
 - [ ] Multi-kiosk WebSocket synchronization (for multi-screen museum galleries).
+- [x] **Japanese UI localization** — all visitor-facing chrome, JS display strings, billboard
+      canvas text, and the Gemini phase-A headline instruction are now Japanese; `lang="ja"`
+      and speech recognition set to `ja-JP`. DSL enum tokens in the debug panel and the
+      offline parser's English keyword arguments (incl. `submitWildPrompt` demo strings) are
+      intentionally left in English.

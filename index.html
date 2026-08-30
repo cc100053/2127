@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>2127 World Shaper // 3D Societal Simulation Prototype</title>
+  <title>2127 ワールドシェイパー // 3D社会シミュレーション試作機</title>
   
   <!-- Tailwind CSS -->
   <script src="vendor/tailwind.js"></script>
@@ -164,16 +164,16 @@
       <div>
         <div class="flex items-center space-x-2">
           <span class="font-cyber font-black tracking-widest text-lg text-transparent bg-clip-text bg-gradient-to-r from-cyber-cyan via-white to-cyber-neonGreen">
-            2127 WORLD SHAPER
+            2127 ワールドシェイパー
           </span>
           <span class="px-2 py-0.5 text-[10px] font-mono tracking-widest bg-cyber-cyan/15 text-cyber-cyan border border-cyber-cyan/30 rounded uppercase">
-            EXHIBITION SIM
+            展示シミュレーション
           </span>
         </div>
         <p class="text-[11px] text-slate-400 font-mono tracking-wider flex items-center gap-2">
-          <span>CENTRAL SOCIETAL ENGINE</span>
+          <span>中央社会エンジン</span>
           <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-          <span id="ai-status-text" class="text-emerald-400 font-semibold">ONLINE // GEMINI READY</span>
+          <span id="ai-status-text" class="text-emerald-400 font-semibold">オンライン // GEMINI 準備完了</span>
         </p>
       </div>
     </div>
@@ -181,39 +181,39 @@
     <!-- Quick Control Tools -->
     <div class="flex items-center space-x-2">
       <!-- Lighting Atmosphere Toggle -->
-      <button id="btn-light-mode" title="Toggle Lighting Atmosphere (Ultra Neon / Sunlight / Dusk)" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/80 hover:bg-yellow-950/40 border border-yellow-500/60 text-yellow-300 hover:text-white flex items-center space-x-1.5 font-mono shadow-[0_0_10px_rgba(234,179,8,0.25)]">
+      <button id="btn-light-mode" title="照明アトモスフィアの切替（ウルトラネオン / 陽光 / 黄昏）" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/80 hover:bg-yellow-950/40 border border-yellow-500/60 text-yellow-300 hover:text-white flex items-center space-x-1.5 font-mono shadow-[0_0_10px_rgba(234,179,8,0.25)]">
         <i data-lucide="sun" class="w-3.5 h-3.5 text-yellow-400"></i>
-        <span id="light-mode-text" class="font-mono uppercase hidden sm:inline">Light: Ultra</span>
+        <span id="light-mode-text" class="font-mono uppercase hidden sm:inline">照明: ウルトラ</span>
       </button>
 
       <!-- Camera Reset Button -->
-      <button id="btn-reset-cam" title="Reset Isometric Camera" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/80 hover:bg-cyber-cyan/20 border border-slate-700 hover:border-cyber-cyan text-slate-300 hover:text-white flex items-center space-x-1.5">
+      <button id="btn-reset-cam" title="アイソメトリックカメラをリセット" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/80 hover:bg-cyber-cyan/20 border border-slate-700 hover:border-cyber-cyan text-slate-300 hover:text-white flex items-center space-x-1.5">
         <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-cyber-cyan"></i>
-        <span class="font-mono uppercase hidden sm:inline">Reset Cam</span>
+        <span class="font-mono uppercase hidden sm:inline">カメラリセット</span>
       </button>
 
       <!-- Auto Orbit Toggle -->
-      <button id="btn-auto-rotate" title="Toggle Auto-Orbit" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/80 hover:bg-cyber-cyan/20 border border-slate-700 hover:border-cyber-cyan text-slate-300 hover:text-white flex items-center space-x-1.5">
+      <button id="btn-auto-rotate" title="自動オービットの切替" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/80 hover:bg-cyber-cyan/20 border border-slate-700 hover:border-cyber-cyan text-slate-300 hover:text-white flex items-center space-x-1.5">
         <i data-lucide="orbit" class="w-3.5 h-3.5 text-cyber-neonGreen"></i>
-        <span id="rotate-status" class="font-mono uppercase hidden sm:inline">Orbit: On</span>
+        <span id="rotate-status" class="font-mono uppercase hidden sm:inline">オービット: ON</span>
       </button>
 
       <!-- Audio Synth FX Toggle -->
-      <button id="btn-audio-toggle" title="Toggle Audio Soundscape" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/80 hover:bg-cyber-cyan/20 border border-slate-700 hover:border-cyber-cyan text-slate-300 hover:text-white flex items-center space-x-1.5">
+      <button id="btn-audio-toggle" title="サウンドスケープの切替" class="cyber-btn px-3 py-1.5 text-xs bg-slate-900/80 hover:bg-cyber-cyan/20 border border-slate-700 hover:border-cyber-cyan text-slate-300 hover:text-white flex items-center space-x-1.5">
         <i data-lucide="volume-2" id="audio-icon" class="w-3.5 h-3.5 text-cyber-amber"></i>
-        <span id="audio-status" class="font-mono uppercase hidden sm:inline">Audio: Off</span>
+        <span id="audio-status" class="font-mono uppercase hidden sm:inline">音声: OFF</span>
       </button>
 
       <!-- API Key Settings Modal Trigger -->
       <button id="btn-api-modal" class="cyber-btn px-3 py-1.5 text-xs bg-cyber-cyan/15 hover:bg-cyber-cyan/30 border border-cyber-cyan/50 text-cyber-cyan flex items-center space-x-1.5 font-mono shadow-[0_0_10px_rgba(0,240,255,0.2)]">
         <i data-lucide="key" class="w-3.5 h-3.5"></i>
-        <span class="hidden md:inline">API KEY</span>
+        <span class="hidden md:inline">APIキー</span>
       </button>
 
       <!-- Telemetry / Debug Decoder Toggle -->
-      <button id="btn-debug-toggle" title="Toggle Vector Telemetry & Diagnostics" class="cyber-btn px-3 py-1.5 text-xs bg-amber-950/50 hover:bg-amber-900/70 border border-amber-500/50 text-amber-300 flex items-center space-x-1.5 font-mono shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+      <button id="btn-debug-toggle" title="ベクターテレメトリと診断の切替" class="cyber-btn px-3 py-1.5 text-xs bg-amber-950/50 hover:bg-amber-900/70 border border-amber-500/50 text-amber-300 flex items-center space-x-1.5 font-mono shadow-[0_0_10px_rgba(245,158,11,0.2)]">
         <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
-        <span class="hidden md:inline">DEBUG MATRIX</span>
+        <span class="hidden md:inline">デバッグマトリクス</span>
       </button>
     </div>
   </header>
@@ -226,10 +226,10 @@
     <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
       <div class="flex items-center space-x-1.5 text-amber-400 font-bold tracking-wider">
         <i data-lucide="cpu" class="w-4 h-4"></i>
-        <span>TELEMETRY & VECTOR DECODER</span>
+        <span>テレメトリ & ベクターデコーダ</span>
       </div>
       <div class="flex items-center space-x-2">
-        <span id="debug-engine-tag" class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-500/40">LOCAL ZERO-SHOT NLP</span>
+        <span id="debug-engine-tag" class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-500/40">ローカル ゼロショット NLP</span>
         <button onclick="toggleDebugPanel(false)" class="text-slate-400 hover:text-white">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
@@ -238,38 +238,38 @@
 
     <!-- Active Input Decree Prompt -->
     <div class="mb-2 bg-black/50 p-2 rounded border border-slate-800">
-      <span class="text-[9px] text-slate-500 uppercase block font-bold">DECREE PROMPT</span>
-      <span id="debug-prompt-text" class="text-slate-200 text-[11px] italic">"None"</span>
+      <span class="text-[9px] text-slate-500 uppercase block font-bold">布告プロンプト</span>
+      <span id="debug-prompt-text" class="text-slate-200 text-[11px] italic">「なし」</span>
     </div>
 
     <!-- Universal Parametric Matrix Readout -->
     <div class="space-y-1.5 text-[11px]">
       <div class="flex justify-between py-0.5 border-b border-slate-900">
-        <span class="text-slate-400">Skyline Density:</span>
-        <span id="debug-building-count" class="text-cyan-400 font-bold">28 / 28 Standing</span>
+        <span class="text-slate-400">スカイライン密度:</span>
+        <span id="debug-building-count" class="text-cyan-400 font-bold">28 / 28 存立</span>
       </div>
       <div class="flex justify-between py-0.5 border-b border-slate-900">
-        <span class="text-slate-400">Citizen Anatomy:</span>
-        <span id="debug-anatomy" class="text-emerald-400 font-bold">Spine: 0° | Height: 1.0x</span>
+        <span class="text-slate-400">市民アナトミー:</span>
+        <span id="debug-anatomy" class="text-emerald-400 font-bold">脊椎: 0° | 身長: 1.0x</span>
       </div>
       <div class="flex justify-between py-0.5 border-b border-slate-900">
-        <span class="text-slate-400">Wardrobe Primitive:</span>
-        <span id="debug-wardrobe" class="text-pink-400 font-bold">none</span>
+        <span class="text-slate-400">装備プリミティブ:</span>
+        <span id="debug-wardrobe" class="text-pink-400 font-bold">なし</span>
       </div>
       <div class="flex justify-between py-0.5 border-b border-slate-900">
-        <span class="text-slate-400">Locomotion Gait:</span>
+        <span class="text-slate-400">歩容タイプ:</span>
         <span id="debug-locomotion" class="text-purple-400 font-bold">biped_walk (1.0x)</span>
       </div>
       <div class="flex justify-between py-0.5 border-b border-slate-900">
-        <span class="text-slate-400">Dynamic Spawner:</span>
-        <span id="debug-spawner" class="text-yellow-400 font-bold">none</span>
+        <span class="text-slate-400">動的スポナー:</span>
+        <span id="debug-spawner" class="text-yellow-400 font-bold">なし</span>
       </div>
       <div class="flex justify-between gap-2 py-0.5 border-b border-slate-900">
-        <span class="text-slate-400 shrink-0">City Edits:</span>
-        <span id="debug-ops" class="text-emerald-400 font-bold text-right">none</span>
+        <span class="text-slate-400 shrink-0">都市編集:</span>
+        <span id="debug-ops" class="text-emerald-400 font-bold text-right">なし</span>
       </div>
       <div class="flex justify-between py-0.5">
-        <span class="text-slate-400">Societal Mood:</span>
+        <span class="text-slate-400">社会ムード:</span>
         <span id="debug-mood" class="font-bold text-slate-300">#00f0ff (50% / 50% / 50%)</span>
       </div>
     </div>
@@ -277,9 +277,9 @@
     <!-- Bizarre Zero-Shot Concept Badge -->
     <div id="debug-bizarre-alert" class="mt-2.5 pt-2 border-t border-slate-800 bg-amber-950/40 p-2 rounded border border-amber-500/30 text-[10px] text-amber-200">
       <div class="flex items-center gap-1 font-bold text-amber-300 mb-0.5">
-        <span>⚡ ZERO-SHOT SYNTHESIS ACTIVE</span>
+        <span>⚡ ゼロショット合成 稼働中</span>
       </div>
-      <div id="debug-bizarre-desc">Universal parametric rig dynamically mapped prompt to 3D matrix in real time.</div>
+      <div id="debug-bizarre-desc">汎用パラメトリックリグがプロンプトをリアルタイムで3Dマトリクスに動的マッピングしました。</div>
     </div>
   </div>
 
@@ -293,10 +293,10 @@
       <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-800">
         <span class="text-xs font-mono font-bold tracking-widest text-slate-400 uppercase flex items-center gap-1.5">
           <i data-lucide="activity" class="w-3.5 h-3.5 text-cyber-cyan"></i>
-          SOCIETAL VECTOR GAUGES
+          社会ベクターゲージ
         </span>
         <span id="current-year" class="text-xs font-cyber font-bold text-cyber-cyan bg-cyber-cyan/10 px-2 py-0.5 rounded border border-cyber-cyan/30">
-          2127 CE
+          2127年
         </span>
       </div>
 
@@ -304,7 +304,7 @@
       <div class="space-y-1 mb-3">
         <div class="flex justify-between text-xs font-mono">
           <span class="text-emerald-400 flex items-center gap-1.5">
-            <i data-lucide="trees" class="w-3.5 h-3.5"></i> NATURE / BIOSPHERE
+            <i data-lucide="trees" class="w-3.5 h-3.5"></i> 自然 / 生物圏
           </span>
           <span id="val-nature" class="font-bold text-emerald-300">50%</span>
         </div>
@@ -317,7 +317,7 @@
       <div class="space-y-1 mb-3">
         <div class="flex justify-between text-xs font-mono">
           <span class="text-cyan-400 flex items-center gap-1.5">
-            <i data-lucide="cpu" class="w-3.5 h-3.5"></i> TECHNOLOGY / CYBER
+            <i data-lucide="cpu" class="w-3.5 h-3.5"></i> テクノロジー / サイバー
           </span>
           <span id="val-tech" class="font-bold text-cyan-300">50%</span>
         </div>
@@ -330,7 +330,7 @@
       <div class="space-y-1 mb-4">
         <div class="flex justify-between text-xs font-mono">
           <span class="text-amber-400 flex items-center gap-1.5">
-            <i data-lucide="shield" class="w-3.5 h-3.5"></i> ORDER / REGULATION
+            <i data-lucide="shield" class="w-3.5 h-3.5"></i> 秩序 / 統制
           </span>
           <span id="val-order" class="font-bold text-amber-300">50%</span>
         </div>
@@ -341,21 +341,21 @@
 
       <!-- Paradigm / State Classification -->
       <div class="p-2.5 rounded-lg bg-black/40 border border-slate-800 text-center">
-        <span class="text-[10px] text-slate-500 font-mono tracking-widest uppercase block mb-1">CIVILIZATION STATE</span>
+        <span class="text-[10px] text-slate-500 font-mono tracking-widest uppercase block mb-1">文明ステート</span>
         <div id="civilization-state" class="text-sm font-cyber font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyber-cyan via-white to-cyber-neonGreen tracking-wider">
-          SYNTHETIC EQUILIBRIUM
+          合成的均衡
         </div>
       </div>
 
       <!-- City Vitals Grid -->
       <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-800/80 text-[11px] font-mono text-slate-400">
         <div>
-          <span class="text-[9px] text-slate-500 uppercase block">POPULATION (SECTOR 0)</span>
-          <span id="stat-pop" class="text-slate-200 font-semibold">14.2M CITIZENS</span>
+          <span class="text-[9px] text-slate-500 uppercase block">人口（セクター0）</span>
+          <span id="stat-pop" class="text-slate-200 font-semibold">1,420万人</span>
         </div>
         <div>
-          <span class="text-[9px] text-slate-500 uppercase block">ENERGY GRID INDEX</span>
-          <span id="stat-energy" class="text-cyber-cyan font-semibold">98.4 TWh / SYNTH</span>
+          <span class="text-[9px] text-slate-500 uppercase block">エネルギーグリッド指数</span>
+          <span id="stat-energy" class="text-cyber-cyan font-semibold">98.4 TWh / 合成</span>
         </div>
       </div>
     </div>
@@ -366,11 +366,11 @@
       <div class="flex items-center justify-between text-slate-400 mb-1.5">
         <span class="flex items-center gap-1.5 text-cyber-neonPink font-bold text-[10px] tracking-wider uppercase">
           <span class="w-2 h-2 rounded-full bg-cyber-neonPink animate-ping inline-block"></span>
-          2127 SKY-BILLBOARD TRANSMISSION
+          2127 スカイビルボード送信
         </span>
       </div>
       <p id="live-headline-preview" class="text-slate-200 font-cyber text-xs leading-relaxed italic line-clamp-2">
-        "INITIALIZING 2127 CENTRAL SOCIETAL SIMULATION PROTOCOL..."
+        「2127 中央社会シミュレーション・プロトコルを初期化中…」
       </p>
     </div>
 
@@ -380,16 +380,16 @@
       <div class="flex items-center justify-between text-slate-400 mb-2">
         <span class="flex items-center gap-1.5 text-cyber-cyan font-bold text-[10px] tracking-wider uppercase">
           <span class="w-2 h-2 rounded-full bg-cyber-cyan animate-pulse inline-block"></span>
-          STANDING DECREES
+          有効な布告
         </span>
         <span class="flex items-center gap-2">
           <span id="ledger-load" class="text-[9px] text-slate-500">0 / 32</span>
-          <button id="btn-wipe-world" title="Clear the accreted city and start from an unmarked grid"
-                  class="text-[9px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-500 hover:text-red-300 hover:border-red-500/60 transition-colors">WIPE</button>
+          <button id="btn-wipe-world" title="堆積した都市を消去し、まっさらなグリッドから開始する"
+                  class="text-[9px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-500 hover:text-red-300 hover:border-red-500/60 transition-colors">消去</button>
         </span>
       </div>
       <div id="decree-ledger" class="flex flex-col gap-1.5 max-h-44 overflow-y-auto pr-1">
-        <p class="text-[10px] text-slate-500 italic">City unmarked. Awaiting first decree.</p>
+        <p class="text-[10px] text-slate-500 italic">都市は未刻印。最初の布告を待機中。</p>
       </div>
     </div>
   </aside>
@@ -399,8 +399,8 @@
     <div class="cyber-panel px-6 py-4 rounded-xl flex items-center space-x-3 border-cyber-cyan shadow-[0_0_30px_rgba(0,240,255,0.4)]">
       <div class="w-6 h-6 border-2 border-cyber-cyan border-t-transparent rounded-full animate-spin"></div>
       <div class="font-mono text-sm">
-        <div id="loading-title" class="font-cyber font-bold text-cyber-cyan tracking-wider">GEMINI RE-COMPUTING METROPOLIS...</div>
-        <div id="loading-sub" class="text-[11px] text-slate-400">Morphing procedural geometry &amp; ecological parameters</div>
+        <div id="loading-title" class="font-cyber font-bold text-cyber-cyan tracking-wider">GEMINI がメトロポリスを再演算中…</div>
+        <div id="loading-sub" class="text-[11px] text-slate-400">プロシージャル形状と生態パラメータをモーフィング中</div>
       </div>
     </div>
   </div>
@@ -410,82 +410,82 @@
     <!-- Preset Chips Row -->
     <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar justify-start md:justify-center">
       <span class="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider hidden sm:inline-block px-1">
-        QUICK PRESETS:
+        クイックプリセット:
       </span>
 
       <!-- Preset 1: Solarpunk Haven -->
       <button onclick="applyPreset('solarpunk')" class="cyber-btn px-3 py-1.5 text-xs bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/50 text-emerald-200 flex items-center space-x-1.5 shrink-0 rounded">
         <span>🌿</span>
-        <span class="font-semibold">Solarpunk Haven</span>
-        <span class="text-[10px] text-emerald-400 opacity-75 hidden lg:inline">(Bio: 1.0, Tech: 0.8, Ord: 0.9)</span>
+        <span class="font-semibold">ソーラーパンクの楽園</span>
+        <span class="text-[10px] text-emerald-400 opacity-75 hidden lg:inline">(自然: 1.0, 技術: 0.8, 秩序: 0.9)</span>
       </button>
 
       <!-- Preset 2: Cyberpunk Surveillance State -->
       <button onclick="applyPreset('cyberpunk')" class="cyber-btn px-3 py-1.5 text-xs bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/50 text-cyan-200 flex items-center space-x-1.5 shrink-0 rounded">
         <span>⚡</span>
-        <span class="font-semibold">Cyberpunk State</span>
-        <span class="text-[10px] text-cyan-400 opacity-75 hidden lg:inline">(Bio: 0.0, Tech: 1.0, Ord: 1.0)</span>
+        <span class="font-semibold">サイバーパンク国家</span>
+        <span class="text-[10px] text-cyan-400 opacity-75 hidden lg:inline">(自然: 0.0, 技術: 1.0, 秩序: 1.0)</span>
       </button>
 
       <!-- Preset 3: Wasteland Anarchy -->
       <button onclick="applyPreset('wasteland')" class="cyber-btn px-3 py-1.5 text-xs bg-red-950/60 hover:bg-red-900/80 border border-red-500/50 text-red-200 flex items-center space-x-1.5 shrink-0 rounded">
         <span>☣️</span>
-        <span class="font-semibold">Wasteland Anarchy</span>
-        <span class="text-[10px] text-red-400 opacity-75 hidden lg:inline">(Bio: 0.1, Tech: 0.2, Ord: 0.0)</span>
+        <span class="font-semibold">荒廃地のアナーキー</span>
+        <span class="text-[10px] text-red-400 opacity-75 hidden lg:inline">(自然: 0.1, 技術: 0.2, 秩序: 0.0)</span>
       </button>
 
       <!-- Preset 4: Neon Bio-Synth Oasis -->
       <button onclick="applyPreset('biosynth')" class="cyber-btn px-3 py-1.5 text-xs bg-pink-950/60 hover:bg-pink-900/80 border border-pink-500/50 text-pink-200 flex items-center space-x-1.5 shrink-0 rounded">
         <span>🔮</span>
-        <span class="font-semibold">Bio-Synth Oasis</span>
-        <span class="text-[10px] text-pink-400 opacity-75 hidden lg:inline">(Bio: 0.9, Tech: 0.9, Ord: 0.5)</span>
+        <span class="font-semibold">バイオシンセのオアシス</span>
+        <span class="text-[10px] text-pink-400 opacity-75 hidden lg:inline">(自然: 0.9, 技術: 0.9, 秩序: 0.5)</span>
       </button>
     </div>
 
     <!-- Wild / Unprepared Decrees Row (Demonstrating Zero-Shot Procedural AI) -->
     <div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar justify-start md:justify-center">
       <span class="text-[10px] font-mono text-purple-400 font-bold uppercase tracking-wider hidden sm:inline-block px-1">
-        ✨ ZERO-SHOT AI:
+        ✨ ゼロショットAI:
       </span>
       <button onclick="submitWildPrompt('All citizens must wear bright green hats and march in unison')" class="cyber-btn px-2.5 py-1 text-[11px] bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-400/60 text-emerald-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(16,185,129,0.2)]">
         <span>🎩</span>
-        <span>Green Hats Edict</span>
+        <span>緑の帽子令</span>
       </button>
       <button onclick="submitWildPrompt('Spawn giant bioluminescent tentacles emerging from the ground')" class="cyber-btn px-2.5 py-1 text-[11px] bg-purple-950/80 hover:bg-purple-900 border border-purple-400/60 text-purple-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(168,85,247,0.2)]">
         <span>🐙</span>
-        <span>Bio Tentacles</span>
+        <span>生体触手</span>
       </button>
       <button onclick="submitWildPrompt('Transform metropolis towers into floating crystal monoliths with purple auras')" class="cyber-btn px-2.5 py-1 text-[11px] bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-400/60 text-indigo-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(99,102,241,0.2)]">
         <span>💎</span>
-        <span>Crystal Monoliths</span>
+        <span>クリスタル・モノリス</span>
       </button>
       <button onclick="submitWildPrompt('Deploy a massive glowing planetary energy ring above the city')" class="cyber-btn px-2.5 py-1 text-[11px] bg-yellow-950/80 hover:bg-yellow-900 border border-yellow-400/60 text-yellow-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(234,179,8,0.2)]">
         <span>🪐</span>
-        <span>Planetary Rings</span>
+        <span>惑星リング</span>
       </button>
       <button onclick="submitWildPrompt('Spawn a celestial quantum singularity black hole with glowing photon rings')" class="cyber-btn px-2.5 py-1 text-[11px] bg-orange-950/80 hover:bg-orange-900 border border-orange-400/60 text-orange-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(249,115,22,0.2)]">
         <span>🌌</span>
-        <span>Singularity</span>
+        <span>特異点</span>
       </button>
       <button onclick="submitWildPrompt('Deploy a fleet of cyber UFO alien saucers with tractor beams')" class="cyber-btn px-2.5 py-1 text-[11px] bg-sky-950/80 hover:bg-sky-900 border border-sky-400/60 text-sky-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(56,189,248,0.2)]">
         <span>🛸</span>
-        <span>Alien Fleet</span>
+        <span>エイリアン艦隊</span>
       </button>
       <button onclick="submitWildPrompt('Only one building left standing as a colossal citadel')" class="cyber-btn px-2.5 py-1 text-[11px] bg-amber-950/80 hover:bg-amber-900 border border-amber-400/60 text-amber-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(245,158,11,0.2)]">
         <span>🏛️</span>
-        <span>Sole Monolith</span>
+        <span>唯一のモノリス</span>
       </button>
       <button onclick="submitWildPrompt('All citizens must walk on 4 legs like cyber quadrupeds')" class="cyber-btn px-2.5 py-1 text-[11px] bg-rose-950/80 hover:bg-rose-900 border border-rose-400/60 text-rose-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(244,63,94,0.2)]">
         <span>🐾</span>
-        <span>4-Legs Protocol</span>
+        <span>四足歩行プロトコル</span>
       </button>
       <button onclick="submitWildPrompt('All people must be at least 1.8m tall')" class="cyber-btn px-2.5 py-1 text-[11px] bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-400/60 text-cyan-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(0,240,255,0.2)]">
         <span>📏</span>
-        <span>1.8m Height</span>
+        <span>身長1.8m</span>
       </button>
       <button onclick="submitWildPrompt('Everyone must dance with floating golden halos and neon horns')" class="cyber-btn px-2.5 py-1 text-[11px] bg-pink-950/80 hover:bg-pink-900 border border-pink-400/60 text-pink-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(236,72,153,0.2)]">
         <span>💃</span>
-        <span>Halo Dance Party</span>
+        <span>光輪ダンスパーティ</span>
       </button>
     </div>
 
@@ -496,7 +496,7 @@
 
       <form id="decree-form" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
         <!-- Voice Input / Mic Button -->
-        <button type="button" id="btn-voice" title="Speech to Decree (Voice Input)" class="cyber-btn p-3 bg-slate-900/90 hover:bg-cyber-cyan/20 border border-slate-700 hover:border-cyber-cyan text-slate-300 hover:text-cyber-cyan flex items-center justify-center rounded-xl shrink-0 transition-colors">
+        <button type="button" id="btn-voice" title="音声で布告（ボイス入力）" class="cyber-btn p-3 bg-slate-900/90 hover:bg-cyber-cyan/20 border border-slate-700 hover:border-cyber-cyan text-slate-300 hover:text-cyber-cyan flex items-center justify-center rounded-xl shrink-0 transition-colors">
           <i data-lucide="mic" id="mic-icon" class="w-5 h-5"></i>
         </button>
 
@@ -506,12 +506,12 @@
             type="text" 
             id="decree-input" 
             maxlength="280"
-            placeholder="Propose a 2127 vision or law... (e.g. 'Ban all fossil machinery and fuse architecture with bioluminescent coral trees')" 
+            placeholder="2127年のビジョンや法を提案… （例：「化石燃料機械をすべて禁止し、建築を生物発光するサンゴの木と融合させよ」）"
             class="w-full bg-black/60 text-slate-100 placeholder-slate-500 font-mono text-sm px-4 py-3 rounded-xl border border-slate-700/80 focus:border-cyber-cyan focus:outline-none focus:ring-1 focus:ring-cyber-cyan transition-all"
             autocomplete="off"
           />
           <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none hidden md:flex items-center gap-1 text-[10px] font-mono text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
-            <span>PRESS</span>
+            <span>キー</span>
             <kbd class="text-cyber-cyan font-bold">ENTER</kbd>
           </div>
         </div>
@@ -523,7 +523,7 @@
           class="cyber-btn px-6 py-3 bg-gradient-to-r from-cyber-cyan via-teal-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-slate-950 font-cyber font-extrabold text-sm tracking-wider flex items-center justify-center space-x-2 rounded-xl shadow-[0_0_20px_rgba(0,240,255,0.4)] shrink-0"
         >
           <i data-lucide="send" class="w-4 h-4"></i>
-          <span>TRANSMIT DECREE</span>
+          <span>布告を送信</span>
         </button>
       </form>
     </div>
@@ -538,7 +538,7 @@
       <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
         <div class="flex items-center space-x-2 text-cyber-cyan font-cyber font-bold">
           <i data-lucide="shield-check" class="w-5 h-5"></i>
-          <span>GEMINI API CONFIG</span>
+          <span>GEMINI API 設定</span>
         </div>
         <button onclick="toggleApiModal(false)" class="text-slate-400 hover:text-white">
           <i data-lucide="x" class="w-5 h-5"></i>
@@ -546,11 +546,11 @@
       </div>
 
       <p class="text-xs font-mono text-slate-300 leading-relaxed mb-4">
-        Enter your Google Gemini API key to enable live LLM structured inference for any visitor decree. If no key is entered, the simulation seamlessly uses its built-in <strong class="text-cyber-cyan">Local 2127 Semantic Analyzer</strong>!
+        Google Gemini の APIキーを入力すると、来場者のあらゆる布告に対してライブLLMによる構造化推論が有効になります。キーを入力しない場合、シミュレーションは内蔵の<strong class="text-cyber-cyan">ローカル2127セマンティック解析器</strong>をシームレスに使用します！
       </p>
 
       <div class="space-y-3 mb-5">
-        <label class="block text-xs font-mono text-slate-400 uppercase tracking-wider">Gemini API Key</label>
+        <label class="block text-xs font-mono text-slate-400 uppercase tracking-wider">Gemini APIキー</label>
         <div class="relative">
           <input 
             type="password" 
@@ -563,16 +563,16 @@
           </button>
         </div>
         <p class="text-[10px] text-slate-500 font-mono">
-          Stored locally in your browser's <code class="text-cyber-cyan">localStorage</code>. Never sent anywhere except directly to Google's official Gemini endpoint.
+          ブラウザの <code class="text-cyber-cyan">localStorage</code> にローカル保存されます。Google 公式の Gemini エンドポイント以外へは一切送信されません。
         </p>
       </div>
 
       <div class="flex justify-end space-x-2">
         <button onclick="clearApiKey()" class="px-4 py-2 text-xs font-mono text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded-lg border border-red-900/50">
-          Clear Key
+          キーを消去
         </button>
         <button onclick="saveApiKey()" class="cyber-btn px-5 py-2 text-xs font-cyber font-bold bg-cyber-cyan text-slate-950 rounded-lg shadow-[0_0_15px_rgba(0,240,255,0.4)]">
-          SAVE & CONNECT
+          保存して接続
         </button>
       </div>
     </div>
@@ -590,7 +590,7 @@
       natureLevel: 0.5,    // 0.0 (wasteland/barren) to 1.0 (dense vertical forest)
       techLevel: 0.5,      // 0.0 (primitive/analog) to 1.0 (hyper-cyberpunk)
       orderLevel: 0.5,     // 0.0 (anarchy/chaos) to 1.0 (absolute surveillance order)
-      headline: "2127 CENTRAL SIMULATION ENGINE ONLINE // WAITING FOR CITIZEN DECREE",
+      headline: "2127 中央シミュレーションエンジン オンライン // 市民の布告を待機中",
       dominantColor: "#00f0ff",
       // Secondary dynamic vitals
       population: 14.2,
@@ -603,33 +603,33 @@
         natureLevel: 1.0,
         techLevel: 0.8,
         orderLevel: 0.9,
-        headline: "YEAR 2127: VERTICAL FORESTS ACHIEVE 100% CLEAN ENERGY AUTONOMY",
+        headline: "2127年: 垂直林が100%クリーンエネルギー自立を達成",
         dominantColor: "#10b981",
-        stateName: "SOLARPUNK ZENITH"
+        stateName: "ソーラーパンクの頂点"
       },
       cyberpunk: {
         natureLevel: 0.0,
         techLevel: 1.0,
         orderLevel: 1.0,
-        headline: "CENTRAL AI ENFORCES 24/7 SURVEILLANCE & OPTIMAL PRODUCTIVITY GRID",
+        headline: "中央AIが24時間監視と最適生産性グリッドを施行",
         dominantColor: "#00f0ff",
-        stateName: "CYBERPUNK SURVEILLANCE"
+        stateName: "サイバーパンク監視"
       },
       wasteland: {
         natureLevel: 0.1,
         techLevel: 0.2,
         orderLevel: 0.0,
-        headline: "ENERGY GRID FAILURE TRIGGERS CHAOS IN INDUSTRIAL SECTOR 4",
+        headline: "エネルギーグリッド障害が工業セクター4に混乱を誘発",
         dominantColor: "#ef4444",
-        stateName: "WASTELAND ANARCHY"
+        stateName: "荒廃地のアナーキー"
       },
       biosynth: {
         natureLevel: 0.9,
         techLevel: 0.9,
         orderLevel: 0.5,
-        headline: "BIOLUMINESCENT NEON FLORA POWERS EXPERIMENTAL CYBER-METROPOLIS",
+        headline: "生物発光ネオン植物が実験的サイバー都市を駆動",
         dominantColor: "#ec4899",
-        stateName: "NEON BIO-SYNTH OASIS"
+        stateName: "ネオン・バイオシンセのオアシス"
       }
     };
 
@@ -719,12 +719,12 @@
         initAudio();
         if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
         if (droneGain) droneGain.gain.setValueAtTime(0.03, audioCtx.currentTime);
-        text.innerText = "Audio: On";
+        text.innerText = "音声: ON";
         btn.classList.add('border-cyber-cyan', 'text-cyber-cyan');
         playSoundEffect('click');
       } else {
         if (droneGain && audioCtx) droneGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
-        text.innerText = "Audio: Off";
+        text.innerText = "音声: OFF";
         btn.classList.remove('border-cyber-cyan', 'text-cyber-cyan');
       }
     });
@@ -886,7 +886,7 @@
         renderLoopId = null;
       }
       console.warn('[2127] WebGL context lost — holding until the browser restores it');
-      setLoadingText('RENDER CONTEXT INTERRUPTED', 'Re-establishing the 2127 simulation grid');
+      setLoadingText('レンダーコンテキスト中断', '2127シミュレーショングリッドを再確立中');
       loadingOverlay.classList.remove('opacity-0');
     }
 
@@ -1216,11 +1216,11 @@
        -------------------------------------------------------------------------- */
     const billboardState = {
       mode: 'headline', // 'headline' | 'processing'
-      headlineText: "2127 CENTRAL SIMULATION ENGINE ONLINE // WAITING FOR CITIZEN DECREE",
+      headlineText: "2127 中央シミュレーションエンジン オンライン // 市民の布告を待機中",
       colorHex: "#00f0ff",
       promptText: "",
       progress: 0.0, // 0.0 to 1.0
-      statusStage: "DECODING CITIZEN SPEECH & SEMANTICS...",
+      statusStage: "市民の発話とセマンティクスを解読中…",
     };
 
     // The board is a 1024x384 2D repaint plus a full GPU texture upload. At 120Hz that
@@ -1274,7 +1274,7 @@
       billboardMesh.add(pylon2);
     }
 
-    function setBillboardProcessing(promptText, stage = "INGESTING CITIZEN SIGNAL...") {
+    function setBillboardProcessing(promptText, stage = "市民シグナルを取り込み中…") {
       billboardState.mode = 'processing';
       billboardState.promptText = promptText;
       billboardState.progress = 0.05;
@@ -1327,7 +1327,7 @@
 
         billboardCtx.font = 'bold 22px "Orbitron", monospace';
         billboardCtx.fillStyle = '#00f0ff';
-        billboardCtx.fillText(">>> LIVE INGESTION: 2127 CENTRAL AI PROCESSING DECREE", 58, 48);
+        billboardCtx.fillText(">>> ライブ取り込み: 2127 中央AIが布告を処理中", 58, 48);
 
         // Middle Prompt Box Container
         billboardCtx.fillStyle = 'rgba(0, 240, 255, 0.08)';
@@ -1338,7 +1338,7 @@
 
         billboardCtx.font = 'bold 16px "Chakra Petch", monospace';
         billboardCtx.fillStyle = '#94a3b8';
-        billboardCtx.fillText("INGESTED CITIZEN INPUT:", 46, 94);
+        billboardCtx.fillText("取り込んだ市民入力:", 46, 94);
 
         // Render Ingested Prompt Text
         billboardCtx.font = '700 24px "Chakra Petch", sans-serif';
@@ -1396,7 +1396,7 @@
         billboardCtx.fillStyle = '#ffffff';
         billboardCtx.shadowColor = '#000000';
         billboardCtx.shadowBlur = 6;
-        const progressLabel = `${Math.round(pct * 100)}% COMPLETED // ${billboardState.statusStage}`;
+        const progressLabel = `${Math.round(pct * 100)}% 完了 // ${billboardState.statusStage}`;
         billboardCtx.fillText(progressLabel, barX + 16, barY + 30);
         billboardCtx.shadowBlur = 0;
 
@@ -1409,7 +1409,7 @@
 
         billboardCtx.font = '600 13px "Chakra Petch", monospace';
         billboardCtx.fillStyle = '#64748b';
-        billboardCtx.fillText("QUANTUM SOCIETAL MATRIX // PROCEDURAL THREE.JS MESH RE-COMPUTE", 32, h - 45);
+        billboardCtx.fillText("量子社会マトリクス // プロシージャル THREE.JS メッシュ再演算", 32, h - 45);
 
       } else {
         // === MODE: BROADCASTING BREAKING NEWS HEADLINE ===
@@ -1431,7 +1431,7 @@
         // Header Tag
         billboardCtx.font = 'bold 24px "Orbitron", monospace';
         billboardCtx.fillStyle = colorHex || '#00f0ff';
-        billboardCtx.fillText(">>> 2127 WORLD NETWORK // LIVE DIRECTIVE BROADCAST", 32, 50);
+        billboardCtx.fillText(">>> 2127 ワールドネットワーク // ライブ指令ブロードキャスト", 32, 50);
 
         // Breaking News Headline (Auto wrap)
         billboardCtx.font = '900 34px "Chakra Petch", sans-serif';
@@ -2874,7 +2874,7 @@ CHOOSING A PART — match the thing to the part:
       }));
 
       if (rows.length === 0) {
-        list.innerHTML = '<p class="text-[10px] text-slate-500 italic">City unmarked. Awaiting first decree.</p>';
+        list.innerHTML = '<p class="text-[10px] text-slate-500 italic">都市は未刻印。最初の布告を待機中。</p>';
         return;
       }
 
@@ -2884,21 +2884,21 @@ CHOOSING A PART — match the thing to the part:
       list.innerHTML = rows.map((r) => {
         const when = new Date(r.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const isGuest = r.origin === 'guest';
-        const tag = isGuest ? 'GUEST' : 'AMBIENT';
+        const tag = isGuest ? 'ゲスト' : 'アンビエント';
         const tagCls = isGuest
           ? 'text-emerald-300 border-emerald-500/40 bg-emerald-950/40'
           : 'text-slate-400 border-slate-600/40 bg-slate-900/40';
-        const text = (r.prompt || '(unspoken directive)').slice(0, 64);
+        const text = (r.prompt || '(言葉なき指令)').slice(0, 64);
 
         // Say what the city is actually holding for this decree. An edit-only decree
         // reports its edits; a decree that only moved the societal vectors says so,
         // rather than showing a bare timestamp.
         const detail = [];
         if (r.form) detail.push(escapeLedgerText(r.form));
-        if (r.opCount) detail.push(`${r.opCount} edit${r.opCount === 1 ? '' : 's'}`);
-        if (r.objects) detail.push(`${r.objects} obj`);
-        else if (r.retired) detail.push('form retired');
-        if (detail.length === 0) detail.push('vectors only');
+        if (r.opCount) detail.push(`編集 ${r.opCount} 件`);
+        if (r.objects) detail.push(`オブジェクト ${r.objects}`);
+        else if (r.retired) detail.push('形状は退役');
+        if (detail.length === 0) detail.push('ベクターのみ');
 
         return `<div class="flex items-start gap-1.5 leading-tight${r.retired ? ' opacity-60' : ''}">
             <span class="mt-0.5 w-1.5 h-1.5 rounded-full shrink-0" style="background:${safeHex(r.color, '#a855f7')}"></span>
@@ -3618,17 +3618,17 @@ CHOOSING A PART — match the thing to the part:
       // Update Civilization Paradigm State Tag
       const stateElement = document.getElementById('civilization-state');
       if (cityState.natureLevel > 0.75 && cityState.techLevel > 0.6) {
-        stateElement.innerText = "SOLARPUNK ZENITH";
+        stateElement.innerText = "ソーラーパンクの頂点";
       } else if (cityState.natureLevel < 0.25 && cityState.techLevel > 0.75 && cityState.orderLevel > 0.7) {
-        stateElement.innerText = "CYBERPUNK DYSTOPIA";
+        stateElement.innerText = "サイバーパンク・ディストピア";
       } else if (cityState.orderLevel < 0.3) {
-        stateElement.innerText = "WASTELAND COLLAPSE";
+        stateElement.innerText = "荒廃地の崩壊";
       } else if (cityState.natureLevel > 0.7 && cityState.techLevel < 0.35) {
-        stateElement.innerText = "PRIMITIVE RE-WILDING";
+        stateElement.innerText = "原始への再野生化";
       } else if (cityState.techLevel > 0.85 && cityState.natureLevel > 0.75) {
-        stateElement.innerText = "BIO-SYNTHETIC UTOPIA";
+        stateElement.innerText = "バイオ合成ユートピア";
       } else {
-        stateElement.innerText = "DYNAMIC EQUILIBRIUM";
+        stateElement.innerText = "動的均衡";
       }
     }
 
@@ -3878,10 +3878,10 @@ CHOOSING A PART — match the thing to the part:
       const statusText = document.getElementById('ai-status-text');
       if (!statusText) return;
       if (hasKey) {
-        statusText.innerText = `ONLINE // ${lastEngineLabel} ACTIVE`;
+        statusText.innerText = `オンライン // ${lastEngineLabel} 稼働中`;
         statusText.className = "text-cyber-cyan font-semibold";
       } else {
-        statusText.innerText = "ONLINE // LOCAL ENGINE ACTIVE";
+        statusText.innerText = "オンライン // ローカルエンジン稼働中";
         statusText.className = "text-emerald-400 font-semibold";
       }
     }
@@ -3998,7 +3998,7 @@ You must analyze this decree and output structured numerical values and zero-sho
 - natureLevel: 0.0 (concrete wasteland/barren) to 1.0 (dense vertical forest/biophilic utopia)
 - techLevel: 0.0 (primitive/analog collapse) to 1.0 (hyper-advanced cyberpunk/quantum AI network)
 - orderLevel: 0.0 (total anarchy/war/chaos/smog) to 1.0 (hyper-clean surveillance state/absolute regulation)
-- headline: Dramatic, punchy breaking news headline in 10 words or less broadcast across sky-billboards.
+- headline: スカイビルボードに流す、劇的で歯切れのよい速報見出し。必ず日本語で、25文字程度以内で記述すること。
 - dominantColor: Hex color code representing the city's mood (e.g. #00f0ff, #10b981, #ef4444, #a855f7, #ffd700).
 - anatomy: Universal parametric anatomy:
     - spinePitch: Number in degrees (0 for upright bipedal, 70-90 for 4-legged quadruped or beast crawl)
@@ -4036,7 +4036,7 @@ You must analyze this decree and output structured numerical values and zero-sho
               natureLevel: { type: "NUMBER", description: "0.0 to 1.0" },
               techLevel: { type: "NUMBER", description: "0.0 to 1.0" },
               orderLevel: { type: "NUMBER", description: "0.0 to 1.0" },
-              headline: { type: "STRING", description: "Dramatic 2127 headline in 10 words or less" },
+              headline: { type: "STRING", description: "劇的な2127年の見出し。日本語で25文字程度以内" },
               dominantColor: { type: "STRING", description: "Hex color code" },
               buildingCount: { type: "NUMBER", description: "Exact number of buildings standing (e.g. 1 for 'only one building left', 0 for ground zero)" },
               buildingSurvivalRate: { type: "NUMBER", description: "0.0 to 1.0 fraction of skyscrapers standing" },
@@ -4081,7 +4081,7 @@ You must analyze this decree and output structured numerical values and zero-sho
 
       if (!parsed) {
         console.warn("[2127] All Gemini models unavailable — falling back to local parser.");
-        lastEngineLabel = 'LOCAL // MODELS UNAVAILABLE';
+        lastEngineLabel = 'ローカル // モデル利用不可';
         updateAIStatusDisplay(true);
         return localSemanticParser(decreePrompt);
       }
@@ -4094,7 +4094,7 @@ You must analyze this decree and output structured numerical values and zero-sho
           natureLevel: Math.max(0, Math.min(1, parsed.natureLevel ?? 0.5)),
           techLevel: Math.max(0, Math.min(1, parsed.techLevel ?? 0.5)),
           orderLevel: Math.max(0, Math.min(1, parsed.orderLevel ?? 0.5)),
-          headline: parsed.headline || "CENTRAL AI UPDATES 2127 CITY DIRECTIVE",
+          headline: parsed.headline || "中央AIが2127都市指令を更新",
           dominantColor: parsed.dominantColor || "#00f0ff",
           buildingCount: parsed.buildingCount,
           buildingSurvivalRate: parsed.buildingSurvivalRate,
@@ -4467,7 +4467,7 @@ Compose a form that belongs in this city.`;
       let tech = 0.5;
       let order = 0.5;
       let color = "#00f0ff";
-      let headline = `2127 DECREE ENACTED: "${prompt.slice(0, 45)}..."`;
+      let headline = `2127 布告を制定: 「${prompt.slice(0, 45)}…」`;
 
       // Universal Parametric Rig Structure
       let buildingCount = undefined;
@@ -4481,14 +4481,14 @@ Compose a form that belongs in this city.`;
       if (w('only one building', 'only 1 building', 'single building', 'one building left',
             'one skyscraper', 'lone tower', 'sole arcology', 'single tower', 'one monolith')) {
         buildingCount = 1;
-        headline = "THE LAST CITADEL: ONLY A SINGLE ARCOLOGY REMAINS IN 2127";
+        headline = "最後の城塞: 2127年に唯一のアーコロジーだけが残る";
         color = "#f59e0b";
         order = 0.4;
       } else if (w('no buildings', 'ground zero') ||
                  st('flatten the city', 'destroy all buildings', 'level the city',
                     'demolish everything', 'wipe out buildings', 'wipe out all buildings')) {
         buildingCount = 0;
-        headline = "METROPOLIS FLATTENED: 2127 GROUND ZERO DESOLATION";
+        headline = "メトロポリス壊滅: 2127 グラウンドゼロの荒廃";
         color = "#ef4444";
         order = 0.1;
       } else if (w('half the buildings', 'few buildings', 'sparse skyline', 'some buildings')) {
@@ -4498,26 +4498,26 @@ Compose a form that belongs in this city.`;
       // 1. Headwear Detection
       if (w('green hat', 'green cap', 'emerald hat', 'green hats', 'green caps')) {
         wardrobe = { primitive: 'green_hat', color: '#22c55e' };
-        headline = "MANDATORY GREEN HEADWEAR EDICT ENFORCED ACROSS 2127";
+        headline = "緑の被り物の着用義務令が2127全域で施行される";
         color = "#22c55e";
         order = 0.9;
       } else if (w('top hat', 'top hats', 'hat', 'hats', 'cap', 'caps', 'beret', 'berets')) {
         wardrobe = { primitive: 'top_hat', color: color };
-        headline = "NEW CITIZEN HEADWEAR PROTOCOL IN EFFECT";
+        headline = "新たな市民被り物プロトコルが発効";
       } else if (st('halo', 'angel', 'saint') || w('holy')) {
         wardrobe = { primitive: 'halo', color: '#ffd700' };
         locomotion.gaitType = 'float';
         anatomy.hoverElevation = 0.8;
-        headline = "HOLOGRAPHIC ENERGY HALOS GRANTED TO ALL CITIZENS";
+        headline = "全市民にホログラフィック・エネルギー光輪が付与される";
         color = "#ffd700";
       } else if (st('horn', 'devil') || w('cyber horn')) {
         wardrobe = { primitive: 'horns', color: '#ff0055' };
         locomotion.gaitType = 'dance';
-        headline = "NEON HORN CYBER-IMPLANTS DISTRIBUTED IN SECTOR 7";
+        headline = "ネオンの角サイバーインプラントがセクター7で配布される";
         color = "#ff0055";
       } else if (w('cube', 'cubes', 'box', 'boxes', 'square helmet')) {
         wardrobe = { primitive: 'box', color: '#38bdf8' };
-        headline = "QUANTUM CUBE NEURAL HELMETS DEPLOYED ACROSS METROPOLIS";
+        headline = "量子キューブ神経ヘルメットがメトロポリス全域に配備される";
       } else if (w('cone', 'cones', 'dunce', 'spire hat')) {
         wardrobe = { primitive: 'cone', color: '#f59e0b' };
       } else if (st('sphere') || w('orb helmet', 'gold dome')) {
@@ -4527,13 +4527,13 @@ Compose a form that belongs in this city.`;
       // 2. Biometric Height & Scale
       if (w('1.8m', '2m', '3m', 'height') || st('tall', 'giant') || w('longer legs')) {
         anatomy.heightScale = 1.35;
-        headline = "GENETIC BIOMETRIC MANDATE SETS MINIMUM CITIZEN HEIGHT TO 1.8M";
+        headline = "遺伝子バイオメトリック指令が市民の最低身長を1.8mに設定";
         order = Math.max(order, 0.85);
         tech = Math.max(tech, 0.75);
       } else if (st('tiny', 'small', 'dwarf', 'short', 'micro')) {
         anatomy.heightScale = 0.65;
         anatomy.widthScale = 0.7;
-        headline = "MICRO-CITIZEN DIRECTIVE ACTIVATED ACROSS ALL DISTRICTS";
+        headline = "マイクロ市民指令が全地区で発動される";
       } else if (st('wide', 'broad', 'heav', 'bulk') || w('fat')) {
         anatomy.widthScale = 1.6;
       }
@@ -4543,7 +4543,7 @@ Compose a form that belongs in this city.`;
           w('animal walk')) {
         anatomy.spinePitch = 74;
         locomotion.gaitType = 'quadruped';
-        headline = "CYBERNETIC 4-LEGGED QUADRUPED PROTOCOL ENACTED IN 2127";
+        headline = "サイバネティック四足歩行プロトコルが2127年に制定される";
         color = "#f43f5e";
         tech = Math.max(tech, 0.85);
       } else if (st('march', 'parade', 'soldier', 'militar') || w('in unison')) {
@@ -4566,15 +4566,15 @@ Compose a form that belongs in this city.`;
       // 4. Zero-Shot Procedural Entity Spawning Detection
       if (st('tentacle', 'squid', 'octopus', 'creature')) {
         proceduralSpawn = { type: 'tentacles', color: '#a855f7' };
-        headline = "BIOLUMINESCENT TENTACLES EMERGE ACROSS CITY CONDUITS";
+        headline = "生物発光する触手が都市の導管から出現する";
         color = "#a855f7";
       } else if (st('crystal', 'monolith', 'diamond', 'obelisk') || w('gem', 'gems')) {
         proceduralSpawn = { type: 'crystals', color: '#818cf8' };
-        headline = "FLOATING CRYSTAL MONOLITHS HOVER OVER DISTRICT SPARK";
+        headline = "浮遊するクリスタル・モノリスが地区スパークの上空に漂う";
         color = "#818cf8";
       } else if (w('ring', 'rings', 'planetary ring', 'orbit ring') || st('portal')) {
         proceduralSpawn = { type: 'energy_rings', color: '#f59e0b' };
-        headline = "ORBITAL ENERGY CONDUIT RINGS DEPLOYED ABOVE SKYLINE";
+        headline = "軌道エネルギー導管リングがスカイラインの上空に展開される";
         color = "#f59e0b";
       }
 
@@ -4683,11 +4683,11 @@ Compose a form that belongs in this city.`;
 
       playSoundEffect('transmit');
       loadingOverlay.classList.remove('opacity-0');
-      setLoadingText('RESOLVING CITIZEN DECREE...', 'Evaluating societal vectors');
+      setLoadingText('市民の布告を解決中…', '社会ベクターを評価中');
       document.getElementById('btn-transmit').disabled = true;
 
       // 1. Activate Real-Time Billboard Processing Mode with Progress Bar
-      setBillboardProcessing(promptText, "INGESTING CITIZEN SIGNAL...");
+      setBillboardProcessing(promptText, "市民シグナルを取り込み中…");
 
       // 2. Smooth progression tween on the billboard progress bar while awaiting AI
       const progressObj = { val: 0.05 };
@@ -4698,11 +4698,11 @@ Compose a form that belongs in this city.`;
         onUpdate: () => {
           billboardState.progress = progressObj.val;
           if (progressObj.val > 0.65) {
-            billboardState.statusStage = "COMPUTING PROCEDURAL LERP DIRECTIVE...";
+            billboardState.statusStage = "プロシージャル補間指令を演算中…";
           } else if (progressObj.val > 0.35) {
-            billboardState.statusStage = "EVALUATING 2127 ECOLOGICAL & CYBER VECTORS...";
+            billboardState.statusStage = "2127 生態・サイバーベクターを評価中…";
           } else {
-            billboardState.statusStage = "DECODING CITIZEN SEMANTICS & LAWS...";
+            billboardState.statusStage = "市民のセマンティクスと法を解読中…";
           }
         }
       });
@@ -4721,7 +4721,7 @@ Compose a form that belongs in this city.`;
             duration: 0.45,
             ease: "power2.out",
             onStart: () => {
-              billboardState.statusStage = "100% // DECREE ENACTED & VALIDATED";
+              billboardState.statusStage = "100% // 布告を制定・検証済み";
             },
             onComplete: resolve
           });
@@ -4769,7 +4769,7 @@ Compose a form that belongs in this city.`;
         }
 
         // ---- Phase B: edit the standing city and compose the form ----
-        setLoadingText('REWRITING THE CITY...', 'Applying decree to standing structures');
+        setLoadingText('都市を書き換え中…', '既存の構造物へ布告を適用中');
         loadingOverlay.classList.remove('opacity-0');
 
         const phaseB = await queryProceduralForm(promptText, result);
@@ -4876,7 +4876,7 @@ Compose a form that belongs in this city.`;
 
       const hasApiKey = !!getStoredApiKey();
       if (engineTag) {
-        engineTag.innerText = hasApiKey ? lastEngineLabel : "LOCAL ZERO-SHOT NLP";
+        engineTag.innerText = hasApiKey ? lastEngineLabel : "ローカル ゼロショット NLP";
         engineTag.className = hasApiKey ? "text-[9px] px-1.5 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/40" : "text-[9px] px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-500/40";
       }
 
@@ -4887,16 +4887,16 @@ Compose a form that belongs in this city.`;
       // replace_buildings op takes plots out of the skyline too, not just demolition.
       const replacedNow = buildings.filter((b) => b.replaced).length;
       const standingNow = buildings.filter((b) => !b.replaced && b.mesh.scale.y > 0.01).length;
-      const bCount = `${standingNow} / ${buildings.length} Standing` +
-        (replacedNow ? ` (${replacedNow} replaced)` : '');
+      const bCount = `${standingNow} / ${buildings.length} 存立` +
+        (replacedNow ? ` (${replacedNow} 置換)` : '');
       if (bldgEl) bldgEl.innerText = bCount;
 
       // 2. Anatomy
       const anat = state.anatomy || {};
       const spine = anat.spinePitch !== undefined ? `${anat.spinePitch}°` : "0°";
       const height = anat.heightScale !== undefined ? `${anat.heightScale}x` : "1.0x";
-      const hover = anat.hoverElevation ? ` | Hover: ${anat.hoverElevation}m` : "";
-      if (anatomyEl) anatomyEl.innerText = `Spine: ${spine} | Height: ${height}${hover}`;
+      const hover = anat.hoverElevation ? ` | 浮遊: ${anat.hoverElevation}m` : "";
+      if (anatomyEl) anatomyEl.innerText = `脊椎: ${spine} | 身長: ${height}${hover}`;
 
       // 3. Wardrobe
       const ward = state.wardrobe || {};
@@ -4910,7 +4910,7 @@ Compose a form that belongs in this city.`;
       const loco = state.locomotion || {};
       const gait = loco.gaitType || "walk";
       const spd = loco.speedMultiplier !== undefined ? `${loco.speedMultiplier}x` : "1.0x";
-      if (locomotionEl) locomotionEl.innerText = `${gait} (${spd} speed)`;
+      if (locomotionEl) locomotionEl.innerText = `${gait} (速度 ${spd})`;
 
       // 5. Spawner — a composed form takes precedence over the preset spawners
       const spawn = state.proceduralSpawn || {};
@@ -4921,8 +4921,8 @@ Compose a form that belongs in this city.`;
         if (composed) {
           spawnerEl.innerHTML =
             `<span style="color:${sColor};font-weight:bold;">${escapeLedgerText(composed.name)}</span>` +
-            `<span class="text-slate-500 font-normal"> · composed from ${composed.nodes.length} ` +
-            `part${composed.nodes.length === 1 ? '' : 's'} · x${composed.count}</span>`;
+            `<span class="text-slate-500 font-normal"> · ${composed.nodes.length} ` +
+            `パーツから合成 · x${composed.count}</span>`;
         } else {
           spawnerEl.innerHTML = `<span style="color: ${sColor}; font-weight: bold;">${escapeLedgerText(sType)}</span>`;
         }
@@ -4936,12 +4936,12 @@ Compose a form that belongs in this city.`;
           .filter(([, v]) => v !== null)
           .map(([k, v]) => k + (v.material ? `:${v.material}` : ''));
         if (issued.length === 0 && standing.length === 0) {
-          opsEl.innerHTML = '<span class="text-slate-600 font-normal">none</span>';
+          opsEl.innerHTML = '<span class="text-slate-600 font-normal">なし</span>';
         } else {
           opsEl.innerHTML =
-            `${issued.length} issued` +
+            `${issued.length} 件発行` +
             (standing.length
-              ? `<span class="text-slate-500 font-normal"> · standing: ${escapeLedgerText(standing.join(', '))}</span>`
+              ? `<span class="text-slate-500 font-normal"> · 有効: ${escapeLedgerText(standing.join(', '))}</span>`
               : '');
         }
       }
@@ -4950,11 +4950,11 @@ Compose a form that belongs in this city.`;
       const naturePct = Math.round((state.natureLevel || 0.5) * 100);
       const techPct = Math.round((state.techLevel || 0.5) * 100);
       const orderPct = Math.round((state.orderLevel || 0.5) * 100);
-      if (moodEl) moodEl.innerText = `${state.dominantColor || '#00f0ff'} (Bio: ${naturePct}%, Tech: ${techPct}%, Ord: ${orderPct}%)`;
+      if (moodEl) moodEl.innerText = `${state.dominantColor || '#00f0ff'} (自然: ${naturePct}%, 技術: ${techPct}%, 秩序: ${orderPct}%)`;
 
       // 8. Bizarre Concept Description
       if (bizarreDesc) {
-        bizarreDesc.innerText = `Synthesized universal mathematical vector with zero manual code changes. Rendered seamlessly via Three.js parametric matrices.`;
+        bizarreDesc.innerText = `手動のコード変更ゼロで汎用数学ベクターを合成。Three.js のパラメトリックマトリクスでシームレスに描画しました。`;
       }
 
       // Open debug panel briefly on submission
@@ -4989,7 +4989,7 @@ Compose a form that belongs in this city.`;
     const rotateStatus = document.getElementById('rotate-status');
     rotateBtn.addEventListener('click', () => {
       controls.autoRotate = !controls.autoRotate;
-      rotateStatus.innerText = controls.autoRotate ? "Orbit: On" : "Orbit: Off";
+      rotateStatus.innerText = controls.autoRotate ? "オービット: ON" : "オービット: OFF";
       rotateBtn.classList.toggle('border-cyber-cyan', controls.autoRotate);
       playSoundEffect('click');
     });
@@ -4998,9 +4998,9 @@ Compose a form that belongs in this city.`;
        Lighting Atmosphere Mode Controller (Ultra-Neon / Solarpunk Daylight / Cyber Dusk)
        -------------------------------------------------------------------------- */
     const LIGHTING_MODES = [
-      { key: 'ultra', label: 'Light: Ultra', exposure: 1.45, bg: '#07090e', fog: '#07090e', dir: 2.2, hemi: 1.3, point: 4.8, distInt: 3.4 },
-      { key: 'sun', label: 'Light: Sun', exposure: 1.6, bg: '#0284c7', fog: '#38bdf8', dir: 2.8, hemi: 1.8, point: 3.2, distInt: 2.2 },
-      { key: 'sunset', label: 'Light: Dusk', exposure: 1.5, bg: '#3b0764', fog: '#581c87', dir: 2.4, hemi: 1.4, point: 4.6, distInt: 3.8 }
+      { key: 'ultra', label: '照明: ウルトラ', exposure: 1.45, bg: '#07090e', fog: '#07090e', dir: 2.2, hemi: 1.3, point: 4.8, distInt: 3.4 },
+      { key: 'sun', label: '照明: 陽光', exposure: 1.6, bg: '#0284c7', fog: '#38bdf8', dir: 2.8, hemi: 1.8, point: 3.2, distInt: 2.2 },
+      { key: 'sunset', label: '照明: 黄昏', exposure: 1.5, bg: '#3b0764', fog: '#581c87', dir: 2.4, hemi: 1.4, point: 4.6, distInt: 3.8 }
     ];
     let lightModeIdx = 0;
 
@@ -5043,7 +5043,7 @@ Compose a form that belongs in this city.`;
       recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = false;
-      recognition.lang = 'en-US';
+      recognition.lang = 'ja-JP';
 
       recognition.onstart = () => {
         isRecording = true;
@@ -5065,7 +5065,7 @@ Compose a form that belongs in this city.`;
         stopRecording();
       };
     } else {
-      voiceBtn.title = "Voice recognition not supported in this browser";
+      voiceBtn.title = "このブラウザは音声認識に対応していません";
       voiceBtn.classList.add('opacity-50', 'cursor-not-allowed');
     }
 
@@ -5233,7 +5233,7 @@ Compose a form that belongs in this city.`;
           playSoundEffect('click');
           wipeWorld();
           setBillboardHeadline(
-            "2127 CENTRAL SIMULATION ENGINE RESET // AWAITING FIRST CITIZEN DECREE", "#00f0ff");
+            "2127 中央シミュレーションエンジン リセット // 最初の市民の布告を待機中", "#00f0ff");
         });
       }
 
@@ -5244,7 +5244,7 @@ Compose a form that belongs in this city.`;
             natureLevel: 0.5,
             techLevel: 0.7,
             orderLevel: 0.8,
-            headline: "WELCOME TO 2127: TRANSMIT CITIZEN DECREES TO SHAPE THE METROPOLIS",
+            headline: "ようこそ2127へ: 市民の布告を送信してメトロポリスを形づくろう",
             dominantColor: "#00f0ff"
           }, 1.5);
         }, 500);

@@ -7,7 +7,24 @@ The application is fully functional, verified, and running as a self-contained w
 
 ## 2. Key Recent Implementations & Enhancements
 
-000. **Live-API Verification Pass** (most recent — found two defects nothing else could):
+0000. **Japanese UI Localization** (most recent):
+   - All visitor-facing UI is now Japanese: header/HUD/footer/API-modal markup, every
+     `title=`/`placeholder=`, and all JS-set display strings (loading text, civilization
+     states, decree ledger, debug/telemetry panel labels, billboard canvas `fillText`
+     headers + progress label, AI status line, lighting/orbit/audio toggle labels,
+     preset + zero-shot chip labels, welcome/reset headlines, local semantic-analyzer
+     headlines).
+   - `<html lang="ja">`; Web Speech `recognition.lang = 'ja-JP'`.
+   - Gemini phase-A `systemPrompt` + response-schema `description` now instruct a
+     Japanese `headline` (~25 chars). Phase-B form prompt left in English (geometry/ops
+     only, not user-facing).
+   - Left untranslated deliberately: enum tokens in the debug panel (`biped_walk`,
+     `green_hat`, `tentacles`…) since they mirror the DSL vocabulary; the offline
+     parser's `st()`/`w()` keyword arguments and `submitWildPrompt('…')` example strings
+     stay English so the English keyword matcher still fires for the demo chips.
+   - `npm test` (40) + `npm run check` green.
+
+000. **Live-API Verification Pass** (found two defects nothing else could):
 
    - **The response schema's `part` enum was stale.** It still listed the original ten parts
      after twenty existed, so structured output made the ten new ones *unemittable*. This is
