@@ -34,7 +34,9 @@ Guests input text decrees or voice statements describing their vision or law for
   - **Breaking News Broadcast**: Once computed, the board transitions to broadcasting the 2127 breaking headline with dynamic audio equalizer waveforms.
 - **Persistent World Accretion**:
   - Decrees layer onto the city instead of erasing it — the world carries the marks of every guest who came before.
-  - A `STANDING DECREES` ledger shows what the city is still holding, and from whom.
+  - A `STANDING DECREES` ledger shows what the city is still holding, and from whom — one row
+    per decree, listing its form, its city edits and its standing object count. A decree that
+    only floods or reskins the city earns a row too, since the city is visibly holding it.
   - **The accretion survives a reload.** Each enacted decree's validated recipe (its ops and
     its composed form) is written to `localStorage`, and replayed on boot — so a refresh, a
     crash, or an overnight restart hands the next visitor the city the last one left, not an
@@ -45,8 +47,19 @@ Guests input text decrees or voice statements describing their vision or law for
   - Beyond the three societal sliders, a decree issues bounded edits against the existing metropolis: `retexture_buildings` (11 skins from fungal to crystal to rusted), `set_building_height`, `tilt_buildings`, `flood`, `ground_cover` (9 covers), `set_sky`, `set_windows`, and `replace_buildings` — which tears down a fraction of the skyline and stands a model-composed form on every emptied plot.
   - **Ops persist.** Each kind holds one slot until a later decree supersedes it, so the city a visitor walks into still wears the marks of everyone before them. Retiring a layer restores the skyline it replaced.
   - Offline parity: a keyless kiosk keyword-matches the same op vocabulary, so it still visibly rewrites its city.
+    Matching is word-boundary aware ([`src/keywords.js`](./src/keywords.js)) — plain substring
+    matching had "police" reading as *ice*, "thousand" as *sand*, "outside" as *flood* and
+    "hundred" as a *blood-red sky*.
 - **Generative Scene DSL with Macro Parts**:
-  - When a decree summons a thing, the model composes it from a node tree of ten anatomical macro parts — `limb`, `wing`, `fin`, `tail`, `head`, `spire`, `arch`, `trunk_canopy`, `segment_body`, `ring_halo` — falling back to eleven raw primitives for anything they do not cover. Five nodes describe a whole dragon.
+  - When a decree summons a thing, the model composes it from a node tree of **twenty**
+    macro parts, falling back to eleven raw primitives for anything they do not cover.
+    Five nodes describe a whole dragon.
+    - *Creature & body*: `limb`, `wing`, `fin`, `tail`, `head`, `segment_body`, `tentacle`
+    - *Structure*: `spire`, `arch`, `dome`, `stair_terrace`, `panel_array`, `antenna`
+    - *Machine & vehicle*: `wheel`, `rotor`, `pod`
+    - *Nature & apparatus*: `trunk_canopy`, `root_web`, `sensor_orb`, `ring_halo`
+  - Each part's declared mesh `cost` is what the 60-mesh ceiling charges against, so the
+    costs are verified against what each part actually builds once at boot.
   - Bilateral parts are paired in code off the sign of their x offset, so symmetry never depends on the model remembering to ask for it.
   - Strictly data — model output is never evaluated. A hardened validator clamps, drops or rejects anything malformed and falls back to the hand-built spawners.
 - **Layered AI Engine with Graceful Degradation**:
@@ -134,6 +147,10 @@ The piece is built to run unattended for days:
 - **Untrusted-by-default model output.** Nothing the model returns is ever evaluated. It is
   validated into shape by [`src/validate.js`](./src/validate.js), which is covered by the
   test suite below.
+- **Guest text matched on word boundaries.** [`src/keywords.js`](./src/keywords.js) offers
+  `word()` (complete words only) and `stem()` (a word start, any suffix), because the offline
+  vocabulary genuinely needs both — `ai` must not fire on "rain", but `pollut` must still
+  catch "pollution".
 
 ## Tests
 
@@ -145,7 +162,8 @@ npm run check  # syntax check only
 ```
 
 `src/validate.js` holds the validators for all model-authored data — the composition DSL and
-the city edit ops. They are the security and stability boundary of the installation and the
+the city edit ops — and `src/keywords.js` holds the word-boundary matcher the offline parser
+runs on guest text. They are the security and stability boundary of the installation and the
 only part pure enough to test without a browser, so they live in their own file and are
 loaded verbatim by both `index.html` and `node --test`. The geometry vocabulary they validate
 against stays in `index.html` beside the geometry that implements it, and is injected.

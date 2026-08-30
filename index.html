@@ -51,6 +51,8 @@
   <script src="vendor/gsap.min.js"></script>
   <!-- Validators for untrusted model output. Shared verbatim with `npm test`. -->
   <script src="src/validate.js"></script>
+  <!-- Word-boundary keyword matching for the offline parser. Also shared with tests. -->
+  <script src="src/keywords.js"></script>
 
   <style>
     body, html {
@@ -856,6 +858,8 @@
       createDroneFleet();
       createCitizenFleet();
       createAtmosphericParticles();
+
+      verifyMacroCosts();
 
       // Window resize listener
       window.addEventListener('resize', onWindowResize);
@@ -2061,6 +2065,190 @@
           return g;
         }
       },
+      // ---- Machine & vehicle vocabulary ------------------------------------
+      // A wheel, roller or gear: tyre plus hub, axle running along X. Bilateral, so
+      // one wheel at +x builds the pair. Four wheels = two nodes.
+      wheel: {
+        cost: 2, bilateral: true,
+        build: (mk) => {
+          const g = new THREE.Group();
+          const tyre = mk(new THREE.TorusGeometry(0.40, 0.11, 10, 28));
+          tyre.rotation.y = Math.PI / 2;          // wheel plane is YZ, axle along X
+          tyre.position.x = 0.26;
+          g.add(tyre);
+          const hub = mk(new THREE.CylinderGeometry(0.13, 0.13, 0.52, 12));
+          hub.rotation.z = Math.PI / 2;           // lie the hub along X
+          hub.position.x = 0.16;
+          g.add(hub);
+          return g;
+        }
+      },
+      // A propeller, turbine or fan: three pitched blades on a hub, facing +Z.
+      // Lay it flat for a helicopter rotor with rot [90, 0, 0].
+      rotor: {
+        cost: 4, bilateral: false,
+        build: (mk) => {
+          const g = new THREE.Group();
+          const hub = mk(new THREE.CylinderGeometry(0.11, 0.08, 0.24, 12));
+          hub.rotation.x = Math.PI / 2;           // hub axis along Z
+          g.add(hub);
+          for (let i = 0; i < 3; i++) {
+            const a = (i / 3) * Math.PI * 2;
+            const blade = mk(new THREE.BoxGeometry(0.10, 0.52, 0.03));
+            blade.position.set(Math.cos(a) * 0.27, Math.sin(a) * 0.27, 0);
+            blade.rotation.z = a - Math.PI / 2;   // long axis points radially outward
+            blade.rotation.y = 0.35;              // pitch, so it reads as a blade
+            g.add(blade);
+          }
+          return g;
+        }
+      },
+      // A capsule, cockpit, seed or housing unit: a closed hull lying along Z with a
+      // glowing window band.
+      pod: {
+        cost: 4, bilateral: false,
+        build: (mk, flatMk, glowMk) => {
+          const g = new THREE.Group();
+          const body = mk(new THREE.CylinderGeometry(0.3, 0.3, 0.5, 16));
+          body.rotation.x = Math.PI / 2;
+          g.add(body);
+          [0.25, -0.25].forEach((z, i) => {
+            const cap = mk(new THREE.SphereGeometry(0.3, 16, 10));
+            cap.scale.set(1, 1, i === 0 ? 0.85 : 0.65);   // blunter at the back
+            cap.position.z = z;
+            g.add(cap);
+          });
+          const band = glowMk(new THREE.TorusGeometry(0.31, 0.035, 8, 24));
+          band.position.z = 0.10;
+          g.add(band);
+          return g;
+        }
+      },
+
+      // ---- Architectural vocabulary ----------------------------------------
+      // A dome, vault or biosphere shell. Authored to fill its box, so size
+      // [10, 5, 10] is a true hemisphere.
+      dome: {
+        cost: 2, bilateral: false,
+        build: (mk) => {
+          const g = new THREE.Group();
+          const shell = mk(new THREE.SphereGeometry(0.5, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2));
+          shell.scale.set(1, 2, 1);
+          shell.position.y = -0.5;
+          g.add(shell);
+          const rim = mk(new THREE.TorusGeometry(0.5, 0.035, 8, 34));
+          rim.rotation.x = Math.PI / 2;
+          rim.position.y = -0.48;
+          g.add(rim);
+          return g;
+        }
+      },
+      // A ziggurat, amphitheatre or terraced garden: four stacked steps.
+      stair_terrace: {
+        cost: 4, bilateral: false,
+        build: (mk) => {
+          const g = new THREE.Group();
+          for (let i = 0; i < 4; i++) {
+            const t = i / 4;
+            const w = 1.0 - t * 0.62;
+            const step = mk(new THREE.BoxGeometry(w, 0.24, w));
+            step.position.y = -0.38 + i * 0.25;
+            g.add(step);
+          }
+          return g;
+        }
+      },
+      // A solar array, screen wall, sail or billboard: a mullioned panel facing +Z.
+      panel_array: {
+        cost: 3, bilateral: false,
+        build: (mk) => {
+          const g = new THREE.Group();
+          const face = mk(new THREE.BoxGeometry(0.96, 0.9, 0.05));
+          face.position.y = 0.04;
+          g.add(face);
+          // Mullions stand PROUD of the face (the face is 0.05 deep, so they sit at
+          // +0.06) — flush with it they were swallowed by the slab and the part read
+          // as a blank rectangle from the front, which is the one angle that matters.
+          [-0.31, 0.31].forEach((x) => {
+            const bar = mk(new THREE.BoxGeometry(0.05, 0.94, 0.06));
+            bar.position.set(x, 0.04, 0.06);
+            g.add(bar);
+          });
+          return g;
+        }
+      },
+      // A mast, aerial or sensor tower standing along +Y, with a glowing tip.
+      antenna: {
+        cost: 4, bilateral: false,
+        build: (mk, flatMk, glowMk) => {
+          const g = new THREE.Group();
+          const mast = mk(new THREE.CylinderGeometry(0.025, 0.055, 0.94, 8));
+          g.add(mast);
+          [[0.14, 0.50], [0.32, 0.32]].forEach((c) => {
+            const bar = mk(new THREE.BoxGeometry(c[1], 0.022, 0.022));
+            bar.position.y = c[0];
+            g.add(bar);
+          });
+          const tip = glowMk(new THREE.SphereGeometry(0.05, 8, 8));
+          tip.position.y = 0.5;
+          g.add(tip);
+          return g;
+        }
+      },
+
+      // ---- Organic & surveillance vocabulary -------------------------------
+      // A watching eye: housing, glowing iris looking along +Z, and a yoke.
+      // The city's own surveillance apparatus, and the face of anything watching.
+      sensor_orb: {
+        cost: 3, bilateral: false,
+        build: (mk, flatMk, glowMk) => {
+          const g = new THREE.Group();
+          const shell = mk(new THREE.SphereGeometry(0.40, 16, 12));
+          g.add(shell);
+          const iris = glowMk(new THREE.SphereGeometry(0.17, 12, 10));
+          iris.position.z = 0.32;
+          g.add(iris);
+          const yoke = mk(new THREE.TorusGeometry(0.46, 0.05, 8, 24, Math.PI));
+          yoke.rotation.y = Math.PI / 2;
+          g.add(yoke);
+          return g;
+        }
+      },
+      // A tentacle, vine or hanging cable: a tapering curled chain falling from the
+      // top of its box. Bilateral, so one at +x gives a pair.
+      tentacle: {
+        cost: 5, bilateral: true,
+        build: (mk) => {
+          const g = new THREE.Group();
+          for (let i = 0; i < 5; i++) {
+            const t = i / 4;
+            const bead = mk(new THREE.SphereGeometry(Math.max(0.14 * (1 - t * 0.78), 0.03), 10, 8));
+            bead.scale.set(1, 1, 1.35);
+            bead.position.set(0.05 + Math.sin(t * 2.4) * 0.26, 0.42 - t * 0.92, Math.cos(t * 1.5) * 0.12);
+            g.add(bead);
+          }
+          return g;
+        }
+      },
+      // Roots, mycelium or a cable bundle: five limbs splaying down and outward.
+      root_web: {
+        cost: 5, bilateral: false,
+        build: (mk) => {
+          const g = new THREE.Group();
+          for (let i = 0; i < 5; i++) {
+            const a = (i / 5) * Math.PI * 2 + 0.4;
+            // Thick at the crown, tapering to a thin tip, and splayed so the TIPS go
+            // down and outward. Built the other way up it read as a flower opening,
+            // not as roots taking hold.
+            const r = mk(new THREE.CylinderGeometry(0.11, 0.03, 0.78, 7));
+            r.position.set(Math.cos(a) * 0.18, -0.10, Math.sin(a) * 0.18);
+            r.rotation.z = -Math.cos(a) * 0.55;
+            r.rotation.x = Math.sin(a) * 0.55;
+            g.add(r);
+          }
+          return g;
+        }
+      },
       // A halo, an orbital ring, a portal: one flat ring around the origin.
       ring_halo: {
         cost: 1, bilateral: false,
@@ -2073,6 +2261,30 @@
         }
       }
     };
+
+    // `cost` is what the validator charges a node against the 60-mesh ceiling, so a
+    // wrong number silently corrupts the budget — either starving legitimate forms or
+    // letting a heavy one through. Build every macro once at boot with counting stubs
+    // and warn on any drift. Twenty throwaway groups is nothing next to the city itself,
+    // and it means the ceiling can be trusted.
+    function verifyMacroCosts() {
+      const drift = [];
+      Object.entries(DSL_MACROS).forEach(([name, macro]) => {
+        const scratch = [];
+        const stub = (geom) => { scratch.push(geom); return new THREE.Mesh(geom); };
+        try {
+          const group = macro.build(stub, stub, stub);
+          let actual = 0;
+          group.traverse((o) => { if (o.isMesh) actual++; });
+          if (actual !== macro.cost) drift.push(`${name}: cost ${macro.cost}, builds ${actual}`);
+        } catch (err) {
+          drift.push(`${name}: build threw — ${err.message}`);
+        }
+        scratch.forEach((geom) => geom.dispose());
+      });
+      if (drift.length) console.warn('[2127] macro cost drift:', drift.join('; '));
+      return drift;
+    }
 
     // The DSL limits and the clamping helpers live in src/validate.js so the test
     // suite exercises exactly the code the exhibition runs.
@@ -2344,7 +2556,8 @@
         prompt: ctx.prompt || '',
         origin: ctx.origin || 'guest',
         color: moodHex,
-        form: ''
+        form: '',
+        recordId: ctx.recordId || null
       });
       layer.form = [layer.form, `${o.composition.name} x${victims.length}`]
         .filter(Boolean).join(' + ');
@@ -2547,6 +2760,12 @@
     }
 
     // The ledger is the visible proof that a guest's decree outlived their visit.
+    // A row per DECREE, not per layer. The ledger used to render straight off
+    // `worldLayers`, which only exist for decrees that produce geometry — so a decree
+    // that flooded the streets or reskinned every tower left the panel reading "City
+    // unmarked" while the city was visibly holding it. Rows now come from the persisted
+    // history, with live layers folded in for their object counts, plus any layer that
+    // never was a decree (a preset, an ambient spawn) listed on its own.
     function renderDecreeLedger() {
       const list = document.getElementById('decree-ledger');
       const load = document.getElementById('ledger-load');
@@ -2554,26 +2773,73 @@
 
       if (load) load.innerText = `${worldEntityCount()} / ${MAX_WORLD_ENTITIES}`;
 
-      if (worldLayers.length === 0) {
+      // Group the standing geometry by the decree that authored it.
+      const byRecord = new Map();
+      const unrecorded = [];
+      worldLayers.forEach((l) => {
+        if (l.recordId) {
+          if (!byRecord.has(l.recordId)) byRecord.set(l.recordId, []);
+          byRecord.get(l.recordId).push(l);
+        } else {
+          unrecorded.push(l);
+        }
+      });
+
+      const rows = decreeHistory.map((h) => {
+        const layers = byRecord.get(h.id) || [];
+        const objects = layers.reduce((n, l) => n + l.entities.length, 0);
+        const form = layers.map((l) => l.form).filter(Boolean).join(' + ')
+                  || (h.composition && h.composition.name) || '';
+        const opCount = Array.isArray(h.ops) ? h.ops.length : 0;
+        return {
+          ts: h.ts, prompt: h.prompt, origin: h.origin, color: h.color,
+          form, opCount, objects,
+          // Geometry the budget has since retired: the decree is still on the books,
+          // but what it built is gone.
+          retired: objects === 0 && Boolean(h.composition)
+        };
+      });
+
+      // Presets and ambient spawns are not decrees and never persist, but they are
+      // standing in the city right now, so they still earn a row.
+      unrecorded.forEach((l) => rows.push({
+        ts: l.ts, prompt: l.prompt, origin: l.origin, color: l.color,
+        form: l.form, opCount: 0, objects: l.entities.length, retired: false
+      }));
+
+      if (rows.length === 0) {
         list.innerHTML = '<p class="text-[10px] text-slate-500 italic">City unmarked. Awaiting first decree.</p>';
         return;
       }
 
       // Newest first — the decree a guest just made sits at the top of the list.
-      list.innerHTML = worldLayers.slice().reverse().map((l) => {
-        const when = new Date(l.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const isGuest = l.origin === 'guest';
+      rows.sort((a, b) => b.ts - a.ts);
+
+      list.innerHTML = rows.map((r) => {
+        const when = new Date(r.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const isGuest = r.origin === 'guest';
         const tag = isGuest ? 'GUEST' : 'AMBIENT';
         const tagCls = isGuest
           ? 'text-emerald-300 border-emerald-500/40 bg-emerald-950/40'
           : 'text-slate-400 border-slate-600/40 bg-slate-900/40';
-        const text = (l.prompt || '(unspoken directive)').slice(0, 64);
-        return `<div class="flex items-start gap-1.5 leading-tight">
-            <span class="mt-0.5 w-1.5 h-1.5 rounded-full shrink-0" style="background:${l.color}"></span>
+        const text = (r.prompt || '(unspoken directive)').slice(0, 64);
+
+        // Say what the city is actually holding for this decree. An edit-only decree
+        // reports its edits; a decree that only moved the societal vectors says so,
+        // rather than showing a bare timestamp.
+        const detail = [];
+        if (r.form) detail.push(escapeLedgerText(r.form));
+        if (r.opCount) detail.push(`${r.opCount} edit${r.opCount === 1 ? '' : 's'}`);
+        if (r.objects) detail.push(`${r.objects} obj`);
+        else if (r.retired) detail.push('form retired');
+        if (detail.length === 0) detail.push('vectors only');
+
+        return `<div class="flex items-start gap-1.5 leading-tight${r.retired ? ' opacity-60' : ''}">
+            <span class="mt-0.5 w-1.5 h-1.5 rounded-full shrink-0" style="background:${safeHex(r.color, '#a855f7')}"></span>
             <span class="flex-1 min-w-0">
-              <span class="block text-[10px] text-slate-300 truncate" title="${escapeLedgerText(l.prompt)}">${escapeLedgerText(text)}</span>
+              <span class="block text-[10px] text-slate-300 truncate" title="${escapeLedgerText(r.prompt)}">${escapeLedgerText(text)}</span>
               <span class="text-[9px] px-1 rounded border ${tagCls}">${tag}</span>
-              <span class="text-[9px] text-slate-600 ml-1">${when} · ${escapeLedgerText(l.form || '')} · ${l.entities.length} obj</span>
+              <span class="text-[9px] text-slate-600 ml-1">${when} · ${detail.join(' · ')}</span>
             </span>
           </div>`;
       }).join('');
@@ -2597,7 +2863,11 @@
         origin: meta.origin || 'guest',
         ts: Date.now(),
         color: meta.color || '#a855f7',
-        form: meta.form || ''   // filled in by whatever builds into the layer
+        form: meta.form || '',  // filled in by whatever builds into the layer
+        // Which persisted decree this geometry belongs to, so the ledger can show one
+        // row per decree instead of one per layer. Null for presets and ambient spawns,
+        // which are not decrees and never enter the history.
+        recordId: meta.recordId || null
       };
       layer.group.rotation.y = GOLDEN_ANGLE * layer.id;
       layer.group.userData.layer = layer;
@@ -2635,7 +2905,8 @@
         prompt: spawnConfig.prompt || '',
         origin: spawnConfig.origin || 'guest',
         color: colorHex,
-        form: ''
+        form: '',
+        recordId: spawnConfig.recordId || null
       });
       layer.form = [layer.form, composition ? composition.name : type]
         .filter(Boolean).join(' + ');
@@ -3826,23 +4097,46 @@ PARTS — prefer these over raw primitives:
   A node is either a macro 'part' (a ready-made anatomical cluster) or a raw 'prim'.
   Reach for a part first: one part buys a recognisable feature that would cost you
   five primitives to approximate badly.
+  CREATURE & BODY
     - "limb"          a leg or arm, three jointed segments hanging DOWN from its box
     - "wing"          a swept membrane with spars, filling the +X half of its box
     - "fin"           a single swept blade, +X half of its box
     - "tail"          a tapering tail running BACK along -Z
     - "head"          skull, snout pointing +Z, two glowing eyes
-    - "spire"         a tapering tower with a tip, standing along +Y
-    - "arch"          two legs under a curved span
-    - "trunk_canopy"  a stem carrying a mass on top: tree, mushroom, lamp
     - "segment_body"  a chain of masses along Z, thick amidships: serpent, whale, hull
-    - "ring_halo"     one flat ring around its origin
+    - "tentacle"      a curled tapering strand hanging from the top of its box:
+                      tentacle, vine, hanging cable, root
+  STRUCTURE
+    - "spire"         a tapering tower with a tip, standing along +Y
+    - "arch"          two legs under a curved span: gateway, buttress, bridge
+    - "dome"          a domed shell filling its box: biosphere, vault, capitol,
+                      observatory. size [10,5,10] is a true hemisphere
+    - "stair_terrace" four stacked steps: ziggurat, amphitheatre, terraced garden
+    - "panel_array"   a mullioned panel facing +Z: solar array, screen wall, sail,
+                      billboard
+    - "antenna"       a mast with cross elements and a glowing tip: aerial, sensor
+                      tower, transmitter
+  MACHINE & VEHICLE
+    - "wheel"         tyre and hub, axle along X: wheel, roller, gear. Four wheels
+                      is TWO nodes, not four (see PAIRS)
+    - "rotor"         three pitched blades on a hub facing +Z: propeller, wind
+                      turbine, fan. Lay it flat for a helicopter with rot [90,0,0]
+    - "pod"           a closed hull along Z with a glowing window band: capsule,
+                      cockpit, seed, housing unit
+  NATURE & APPARATUS
+    - "trunk_canopy"  a stem carrying a mass on top: tree, mushroom, lamp
+    - "root_web"      five strands splaying down and outward: roots, mycelium,
+                      a cable bundle
+    - "sensor_orb"    a housing with a glowing iris looking along +Z: surveillance
+                      eye, camera, the face of anything that watches
+    - "ring_halo"     one flat ring around its origin: halo, orbital ring, portal
   Raw prims remain available for anything the parts do not cover:
   "box"|"sphere"|"cylinder"|"cone"|"torus"|"torusKnot"|"plane"|"ring"|"icosa"|"octa"|"tetra"
 
 PAIRS:
-  "limb", "wing" and "fin" come in pairs. Describe ONE of them, on the +X side
-  (a positive x in 'pos'), and the opposite side is built for you. Never write out
-  both a left and a right one — you would get four.
+  "limb", "wing", "fin", "wheel" and "tentacle" come in pairs. Describe ONE of them,
+  on the +X side (a positive x in 'pos'), and the opposite side is built for you.
+  Never write out both a left and a right one — you would get four.
 
 FIELDS:
     - name: Short label for the form, e.g. "sky-dragon"
@@ -4018,40 +4312,46 @@ Compose a form that belongs in this city.`;
     // for this half of phase B and a keyless kiosk still visibly rewrites its city.
     function localCityOps(lower, moodHex) {
       const ops = [];
-      const has = (...words) => words.some((w) => lower.includes(w));
+      // `has` matches a word STARTING with the term, so stems like 'crumbl' and
+      // 'volcan' still work. `hasWord` demands a complete word, and is used for every
+      // short term that used to fire inside a longer one — 'ice' inside "police",
+      // 'sand' inside "thousand", 'ash' inside "crash", 'tide' inside "outside".
+      const has = (...terms) => Keywords2127.stem(lower, terms);
+      const hasWord = (...terms) => Keywords2127.word(lower, terms);
 
       const skin =
-        has('mushroom', 'fungus', 'fungal', 'spore', 'mycel') ? 'fungal' :
-        has('coral', 'reef')                                  ? 'coral' :
-        has('crystal', 'quartz', 'diamond', 'gem')            ? 'crystal' :
-        has('bone', 'skull', 'ossuar')                        ? 'bone' :
-        has('rust', 'corrod', 'decay', 'derelict')            ? 'rusted' :
-        has('wood', 'timber', 'bamboo')                       ? 'wood' :
-        has('chrome', 'steel', 'titanium', 'silver')          ? 'chrome' :
-        has('glass', 'transparent')                           ? 'glass' :
-        has('concrete', 'brutal')                             ? 'concrete' :
-        has('ice', 'frozen', 'glacier')                       ? 'ice' :
-        has('ash', 'burn', 'charred', 'cinder')               ? 'ash' : null;
+        has('mushroom', 'fungus', 'fungal', 'spore', 'mycel')     ? 'fungal' :
+        has('coral', 'reef')                                      ? 'coral' :
+        has('crystal', 'quartz', 'diamond') || hasWord('gem', 'gems') ? 'crystal' :
+        has('skull', 'ossuar') || hasWord('bone', 'bones')        ? 'bone' :
+        has('rust', 'corrod', 'decay', 'derelict')                ? 'rusted' :
+        has('wood', 'timber', 'bamboo')                           ? 'wood' :
+        has('chrome', 'steel', 'titanium', 'silver')              ? 'chrome' :
+        has('glass', 'transparent')                               ? 'glass' :
+        has('concrete', 'brutal')                                 ? 'concrete' :
+        has('frozen', 'glacier') || hasWord('ice', 'icy')         ? 'ice' :
+        has('burn', 'charred', 'cinder') || hasWord('ash', 'ashes') ? 'ash' : null;
       if (skin) ops.push({ op: 'retexture_buildings', material: skin });
 
       const cover =
-        has('grass', 'meadow', 'lawn', 'prairie')     ? 'grass' :
-        has('desert', 'sand', 'dune')                 ? 'sand' :
-        has('snow', 'frozen', 'ice age', 'tundra')    ? 'snow' :
-        has('lava', 'volcan', 'magma')                ? 'lava' :
-        has('moss', 'overgrown', 'jungle')            ? 'moss' :
-        has('circuit', 'datagrid', 'motherboard')     ? 'circuit' :
-        has('ash', 'wasteland', 'nuclear')            ? 'ash' : null;
+        has('grass', 'meadow', 'prairie') || hasWord('lawn', 'lawns') ? 'grass' :
+        has('desert', 'dune') || hasWord('sand', 'sands', 'sandy')    ? 'sand' :
+        has('snow', 'tundra') || hasWord('frozen', 'ice age')         ? 'snow' :
+        has('lava', 'volcan', 'magma')                                ? 'lava' :
+        has('moss', 'overgrown', 'jungle')                            ? 'moss' :
+        has('circuit', 'datagrid', 'motherboard')                     ? 'circuit' :
+        has('wasteland', 'nuclear') || hasWord('ash', 'ashes')        ? 'ash' : null;
       if (cover) ops.push({ op: 'ground_cover', material: cover });
 
-      if (has('flood', 'drown', 'underwater', 'submerge', 'sea level', 'canal', 'ocean', 'tide')) {
+      if (has('flood', 'drown', 'underwater', 'submerge', 'canal', 'ocean')
+          || hasWord('sea level', 'tide', 'tides')) {
         const deep = has('drown', 'submerge', 'sunken', 'underwater');
         ops.push({ op: 'flood', height: deep ? 5.5 : 1.6, color: '#0d3a55', opacity: 0.75 });
       }
 
-      if (has('blackout', 'lights out', 'darkness', 'power cut', 'grid collapse')) {
+      if (has('blackout', 'darkness') || hasWord('lights out', 'power cut', 'grid collapse')) {
         ops.push({ op: 'set_windows', lit: 0.02 });
-      } else if (has('blazing', 'every light', 'illuminate', 'festival of light')) {
+      } else if (has('blazing', 'illuminate') || hasWord('every light', 'festival of light')) {
         ops.push({ op: 'set_windows', lit: 1.0, color: moodHex });
       }
 
@@ -4061,14 +4361,14 @@ Compose a form that belongs in this city.`;
 
       if (has('megatower', 'skyward', 'taller', 'kilometre', 'kilometer', 'colossal')) {
         ops.push({ op: 'set_building_height', multiplier: 2.6 });
-      } else if (has('flatten', 'raze', 'low-rise', 'demolish', 'level the city')) {
+      } else if (has('flatten', 'raze', 'demolish') || hasWord('low-rise', 'level the city')) {
         ops.push({ op: 'set_building_height', multiplier: 0.25 });
       }
 
-      if (has('endless night', 'eternal night', 'blood sky', 'red sky', 'smog', 'toxic air')) {
+      if (has('smog', 'toxic air') || hasWord('endless night', 'eternal night', 'blood sky', 'red sky')) {
         ops.push({
           op: 'set_sky',
-          color: has('blood', 'red') ? '#2a0808' : '#0a0d12',
+          color: hasWord('blood', 'red') ? '#2a0808' : '#0a0d12',
           fogDensity: has('smog', 'toxic') ? 0.05 : 0.02
         });
       }
@@ -4078,6 +4378,11 @@ Compose a form that belongs in this city.`;
 
     function localSemanticParser(prompt) {
       const lower = prompt.toLowerCase();
+      // Same two matchers as localCityOps. `w` demands a complete word — which is what
+      // stops 'ai' firing on "rain", 'hat' on "that" and 'ring' on "during" — while `st`
+      // keeps the deliberate stems ('pollut', 'levitat', 'celebrat') working.
+      const w = (...terms) => Keywords2127.word(lower, terms);
+      const st = (...terms) => Keywords2127.stem(lower, terms);
       let nature = 0.5;
       let tech = 0.5;
       let order = 0.5;
@@ -4093,119 +4398,130 @@ Compose a form that belongs in this city.`;
       let proceduralSpawn = { type: 'none', color: color };
 
       // 0. Building Density & Single-Building Monolith Detection
-      if (/(only one building|only 1 building|single building|one building left|one skyscraper|lone tower|sole arcology|single tower|one monolith)/i.test(lower)) {
+      if (w('only one building', 'only 1 building', 'single building', 'one building left',
+            'one skyscraper', 'lone tower', 'sole arcology', 'single tower', 'one monolith')) {
         buildingCount = 1;
         headline = "THE LAST CITADEL: ONLY A SINGLE ARCOLOGY REMAINS IN 2127";
         color = "#f59e0b";
         order = 0.4;
-      } else if (/(no buildings|flatten the city|destroy all buildings|ground zero|level the city|demolish everything|wipe out buildings|wipe out all buildings)/i.test(lower)) {
+      } else if (w('no buildings', 'ground zero') ||
+                 st('flatten the city', 'destroy all buildings', 'level the city',
+                    'demolish everything', 'wipe out buildings', 'wipe out all buildings')) {
         buildingCount = 0;
         headline = "METROPOLIS FLATTENED: 2127 GROUND ZERO DESOLATION";
         color = "#ef4444";
         order = 0.1;
-      } else if (/(half the buildings|few buildings|sparse skyline|some buildings)/i.test(lower)) {
+      } else if (w('half the buildings', 'few buildings', 'sparse skyline', 'some buildings')) {
         buildingSurvivalRate = 0.35;
       }
 
       // 1. Headwear Detection
-      if (/(green hat|green cap|emerald hat)/i.test(lower)) {
+      if (w('green hat', 'green cap', 'emerald hat', 'green hats', 'green caps')) {
         wardrobe = { primitive: 'green_hat', color: '#22c55e' };
         headline = "MANDATORY GREEN HEADWEAR EDICT ENFORCED ACROSS 2127";
         color = "#22c55e";
         order = 0.9;
-      } else if (/(top hat|hat|cap|beret)/i.test(lower)) {
+      } else if (w('top hat', 'top hats', 'hat', 'hats', 'cap', 'caps', 'beret', 'berets')) {
         wardrobe = { primitive: 'top_hat', color: color };
         headline = "NEW CITIZEN HEADWEAR PROTOCOL IN EFFECT";
-      } else if (/(halo|angel|saint|holy)/i.test(lower)) {
+      } else if (st('halo', 'angel', 'saint') || w('holy')) {
         wardrobe = { primitive: 'halo', color: '#ffd700' };
         locomotion.gaitType = 'float';
         anatomy.hoverElevation = 0.8;
         headline = "HOLOGRAPHIC ENERGY HALOS GRANTED TO ALL CITIZENS";
         color = "#ffd700";
-      } else if (/(horn|horns|devil|cyber horn)/i.test(lower)) {
+      } else if (st('horn', 'devil') || w('cyber horn')) {
         wardrobe = { primitive: 'horns', color: '#ff0055' };
         locomotion.gaitType = 'dance';
         headline = "NEON HORN CYBER-IMPLANTS DISTRIBUTED IN SECTOR 7";
         color = "#ff0055";
-      } else if (/(cube|box|square helmet)/i.test(lower)) {
+      } else if (w('cube', 'cubes', 'box', 'boxes', 'square helmet')) {
         wardrobe = { primitive: 'box', color: '#38bdf8' };
         headline = "QUANTUM CUBE NEURAL HELMETS DEPLOYED ACROSS METROPOLIS";
-      } else if (/(cone|dunce|spire hat)/i.test(lower)) {
+      } else if (w('cone', 'cones', 'dunce', 'spire hat')) {
         wardrobe = { primitive: 'cone', color: '#f59e0b' };
-      } else if (/(sphere|orb helmet|gold dome)/i.test(lower)) {
+      } else if (st('sphere') || w('orb helmet', 'gold dome')) {
         wardrobe = { primitive: 'sphere', color: '#eab308' };
       }
 
       // 2. Biometric Height & Scale
-      if (/(1\.8m|2m|3m|tall|giant|height|grow tall|longer legs)/i.test(lower)) {
+      if (w('1.8m', '2m', '3m', 'height') || st('tall', 'giant') || w('longer legs')) {
         anatomy.heightScale = 1.35;
         headline = "GENETIC BIOMETRIC MANDATE SETS MINIMUM CITIZEN HEIGHT TO 1.8M";
         order = Math.max(order, 0.85);
         tech = Math.max(tech, 0.75);
-      } else if (/(tiny|small|dwarf|short|micro)/i.test(lower)) {
+      } else if (st('tiny', 'small', 'dwarf', 'short', 'micro')) {
         anatomy.heightScale = 0.65;
         anatomy.widthScale = 0.7;
         headline = "MICRO-CITIZEN DIRECTIVE ACTIVATED ACROSS ALL DISTRICTS";
-      } else if (/(fat|wide|broad|heavy|bulk)/i.test(lower)) {
+      } else if (st('wide', 'broad', 'heav', 'bulk') || w('fat')) {
         anatomy.widthScale = 1.6;
       }
 
       // 3. Posture & Quadruped Gait
-      if (/(4 leg|4-leg|four leg|four-leg|quadruped|crawl|beast|animal walk|all people walk with 4 legs)/i.test(lower)) {
+      if (st('4 leg', '4-leg', 'four leg', 'four-leg', 'quadruped', 'crawl', 'beast') ||
+          w('animal walk')) {
         anatomy.spinePitch = 74;
         locomotion.gaitType = 'quadruped';
         headline = "CYBERNETIC 4-LEGGED QUADRUPED PROTOCOL ENACTED IN 2127";
         color = "#f43f5e";
         tech = Math.max(tech, 0.85);
-      } else if (/(march|parade|soldier|military|in unison)/i.test(lower)) {
+      } else if (st('march', 'parade', 'soldier', 'militar') || w('in unison')) {
         locomotion.gaitType = 'march';
         order = Math.max(order, 0.85);
-      } else if (/(dance|party|rave|celebrat)/i.test(lower)) {
+      } else if (st('danc', 'party', 'celebrat') || w('rave', 'raves')) {
         locomotion.gaitType = 'dance';
-      } else if (/(float|fly|levitat|antigravity|zero gravity|moon bounce)/i.test(lower)) {
+      } else if (st('float', 'fly', 'levitat', 'antigravity') ||
+                 w('zero gravity', 'moon bounce')) {
         locomotion.gaitType = 'float';
         anatomy.hoverElevation = 1.0;
       }
 
-      if (/(fast|speed|run|dash|hyper)/i.test(lower)) {
+      if (st('fast', 'speed', 'run', 'dash', 'hyper')) {
         locomotion.speedMultiplier = 2.0;
-      } else if (/(slow|crawl|freeze|leisurely)/i.test(lower)) {
+      } else if (st('slow', 'crawl', 'freez', 'leisurely')) {
         locomotion.speedMultiplier = 0.5;
       }
 
       // 4. Zero-Shot Procedural Entity Spawning Detection
-      if (/(tentacle|tentacles|squid|octopus|creature)/i.test(lower)) {
+      if (st('tentacle', 'squid', 'octopus', 'creature')) {
         proceduralSpawn = { type: 'tentacles', color: '#a855f7' };
         headline = "BIOLUMINESCENT TENTACLES EMERGE ACROSS CITY CONDUITS";
         color = "#a855f7";
-      } else if (/(crystal|crystals|monolith|monoliths|gem|diamond|obelisk)/i.test(lower)) {
+      } else if (st('crystal', 'monolith', 'diamond', 'obelisk') || w('gem', 'gems')) {
         proceduralSpawn = { type: 'crystals', color: '#818cf8' };
         headline = "FLOATING CRYSTAL MONOLITHS HOVER OVER DISTRICT SPARK";
         color = "#818cf8";
-      } else if (/(ring|rings|planetary ring|orbit ring|portal)/i.test(lower)) {
+      } else if (w('ring', 'rings', 'planetary ring', 'orbit ring') || st('portal')) {
         proceduralSpawn = { type: 'energy_rings', color: '#f59e0b' };
         headline = "ORBITAL ENERGY CONDUIT RINGS DEPLOYED ABOVE SKYLINE";
         color = "#f59e0b";
       }
 
       // 5. Environmental Keywords
-      if (/(nature|forest|tree|green|garden|plant|eco|wild|flora|bio|solarpunk|coral|algae)/i.test(lower)) {
+      if (st('natur', 'forest', 'tree', 'green', 'garden', 'plant', 'ecolog', 'wild',
+             'flora', 'bio', 'solarpunk', 'coral', 'algae') || w('eco')) {
         nature += 0.45;
         if (color === "#00f0ff") color = "#10b981";
       }
-      if (/(concrete|asphalt|pollut|burn|wasteland|desolat|extinct|cut down)/i.test(lower)) {
+      if (st('concrete', 'asphalt', 'pollut', 'burn', 'wasteland', 'desolat', 'extinct') ||
+          w('cut down')) {
         nature -= 0.45;
       }
-      if (/(ai|cyber|robot|drone|neon|quantum|matrix|hologram|comput|synth|laser|digital|tech)/i.test(lower)) {
+      if (st('cyber', 'robot', 'drone', 'neon', 'quantum', 'matrix', 'hologram', 'comput',
+             'synth', 'laser', 'digital', 'tech') || w('ai', 'a.i.')) {
         tech += 0.45;
       }
-      if (/(primitive|analog|ban tech|disable|smash|emp|stone age|manual)/i.test(lower)) {
+      if (st('primitive', 'analog', 'disable', 'smash', 'manual') ||
+          w('ban tech', 'emp', 'stone age')) {
         tech -= 0.45;
       }
-      if (/(law|order|surveillance|police|regulate|enforce|curfew|clean|security|control|mandate)/i.test(lower)) {
+      if (st('order', 'surveillance', 'polic', 'regulat', 'enforc', 'clean', 'secur',
+             'control', 'mandat') || w('law', 'laws', 'curfew', 'curfews')) {
         order += 0.45;
       }
-      if (/(anarchy|chaos|rebel|riot|freedom|destroy|war|overthrow|smuggle|smog|decay)/i.test(lower)) {
+      if (st('anarch', 'chao', 'rebel', 'riot', 'freedom', 'destroy', 'overthrow',
+             'smuggl', 'smog', 'decay') || w('war', 'wars', 'warfare')) {
         order -= 0.45;
         if (color === "#00f0ff") color = "#ef4444";
       }
@@ -4352,20 +4668,23 @@ Compose a form that belongs in this city.`;
         releaseDecreeControls(myTurn);
 
         // The preset spawners remain the fallback whenever no composition arrives.
-        const spawnPresetForm = () => {
+        const spawnPresetForm = (recordId) => {
           const ps = result.proceduralSpawn;
           if (!ps || !ps.type || ps.type === 'none') return;
-          spawnProceduralEntities(Object.assign({}, ps, { prompt: promptText, origin }));
+          spawnProceduralEntities(Object.assign({}, ps, { prompt: promptText, origin, recordId }));
         };
 
         // Offline parser path: no key means no phase B, so honour its keyword ops and
         // enum spawn choice now.
         if (!getStoredApiKey()) {
           const offlineOps = sanitizeCityOps(result.ops);
-          applyCityOps(offlineOps, result.dominantColor, 2.2, { prompt: promptText, origin });
-          spawnPresetForm();
-          recordDecree({ prompt: promptText, origin, ts: Date.now(),
-                         color: result.dominantColor, ops: offlineOps, composition: null });
+          const rec = recordDecree({ prompt: promptText, origin, ts: Date.now(),
+                                     color: result.dominantColor, ops: offlineOps,
+                                     composition: null });
+          applyCityOps(offlineOps, result.dominantColor, 2.2,
+                       { prompt: promptText, origin, recordId: rec.id });
+          spawnPresetForm(rec.id);
+          renderDecreeLedger();
           return;
         }
 
@@ -4388,14 +4707,20 @@ Compose a form that belongs in this city.`;
           // budget retires the entire decree together.
           const buildsGeometry = phaseB.composition ||
             phaseB.ops.some((o) => o.op === 'replace_buildings');
+          // Recorded before anything is built, so its id can be stamped onto every
+          // layer the decree opens and the ledger shows one row for the whole decree.
+          const rec = recordDecree({ prompt: promptText, origin, ts: Date.now(),
+                                     color: result.dominantColor, ops: phaseB.ops,
+                                     composition: phaseB.composition });
           const layer = buildsGeometry ? openDecreeLayer({
-            prompt: promptText, origin, color: result.dominantColor, form: ''
+            prompt: promptText, origin, color: result.dominantColor, form: '',
+            recordId: rec.id
           }) : null;
 
           // Ops first: they reshape the city the form is about to land in, and a
           // replace_buildings needs its plots cleared before anything stands on them.
           const opCount = applyCityOps(phaseB.ops, result.dominantColor, 2.2,
-                                       { prompt: promptText, origin, layer });
+                                       { prompt: promptText, origin, layer, recordId: rec.id });
           if (phaseB.composition) {
             spawnProceduralEntities({
               type: 'none',
@@ -4403,13 +4728,12 @@ Compose a form that belongs in this city.`;
               color: result.dominantColor,
               prompt: promptText,
               origin,
-              layer
+              layer,
+              recordId: rec.id
             });
           }
           if (layer) closeDecreeLayer();
-          recordDecree({ prompt: promptText, origin, ts: Date.now(),
-                         color: result.dominantColor, ops: phaseB.ops,
-                         composition: phaseB.composition });
+          renderDecreeLedger();
           updateDebugPanel(promptText, Object.assign({}, result, {
             composition: phaseB.composition, ops: phaseB.ops, opCount
           }));
@@ -4417,10 +4741,13 @@ Compose a form that belongs in this city.`;
           // Phase B unreachable. Phase A may have fallen back to the local parser,
           // which does author ops — honour them rather than dropping the edit.
           const fallbackOps = sanitizeCityOps(result.ops);
-          applyCityOps(fallbackOps, result.dominantColor, 2.2, { prompt: promptText, origin });
-          spawnPresetForm();
-          recordDecree({ prompt: promptText, origin, ts: Date.now(),
-                         color: result.dominantColor, ops: fallbackOps, composition: null });
+          const rec = recordDecree({ prompt: promptText, origin, ts: Date.now(),
+                                     color: result.dominantColor, ops: fallbackOps,
+                                     composition: null });
+          applyCityOps(fallbackOps, result.dominantColor, 2.2,
+                       { prompt: promptText, origin, recordId: rec.id });
+          spawnPresetForm(rec.id);
+          renderDecreeLedger();
         }
       } catch (err) {
         console.error("Simulation error:", err);
@@ -4691,20 +5018,28 @@ Compose a form that belongs in this city.`;
        and it is re-sanitised on the way back in, so a hand-edited localStorage entry is
        no more dangerous than a hostile model response. */
     const WORLD_STORAGE_KEY = '2127_WORLD_SNAPSHOT';
-    const WORLD_SNAPSHOT_VERSION = 1;
+    const WORLD_SNAPSHOT_VERSION = 2;   // v2: history entries carry ids
+    // v1 is still readable: its entries simply lack ids, which the restore assigns.
+    const READABLE_SNAPSHOT_VERSIONS = [1, 2];
     const MAX_HISTORY_ENTRIES = 24;      // the budget retires layers long before this
 
     // One entry per enacted decree, in the order they were enacted.
     let decreeHistory = [];
     // The last full Phase A result, which carries the citizen rig / wardrobe / vectors.
     let lastResolvedState = null;
+    // Ids link a persisted decree to whatever geometry it put in the world.
+    let decreeRecordSeq = 0;
 
+    // Call this BEFORE opening the decree's layer, so the returned id can be handed to
+    // everything the decree builds and the ledger can group it all under one row.
     function recordDecree(entry) {
+      entry.id = ++decreeRecordSeq;
       decreeHistory.push(entry);
       if (decreeHistory.length > MAX_HISTORY_ENTRIES) {
         decreeHistory = decreeHistory.slice(-MAX_HISTORY_ENTRIES);
       }
       saveWorldSnapshot();
+      return entry;
     }
 
     function saveWorldSnapshot() {
@@ -4727,7 +5062,7 @@ Compose a form that belongs in this city.`;
         const raw = localStorage.getItem(WORLD_STORAGE_KEY);
         if (!raw) return null;
         const snap = JSON.parse(raw);
-        if (!snap || snap.v !== WORLD_SNAPSHOT_VERSION || !Array.isArray(snap.history)) return null;
+        if (!snap || !READABLE_SNAPSHOT_VERSIONS.includes(snap.v) || !Array.isArray(snap.history)) return null;
         return snap;
       } catch (err) {
         console.warn('[2127] world snapshot unreadable, starting from an unmarked grid:', err);
@@ -4749,18 +5084,25 @@ Compose a form that belongs in this city.`;
       }
 
       snap.history.forEach((h) => {
+        // Ids come back with the snapshot so the ledger's grouping survives too. A
+        // snapshot written before ids existed gets fresh ones here.
+        const recordId = Number.isFinite(h.id) ? h.id : ++decreeRecordSeq;
+        decreeRecordSeq = Math.max(decreeRecordSeq, recordId);
+        h.id = recordId;
+
         const ops = sanitizeCityOps(h.ops);
         const composition = sanitizeComposition(h.composition);
         const buildsGeometry = Boolean(composition) || ops.some((o) => o.op === 'replace_buildings');
         const meta = { prompt: h.prompt || '', origin: h.origin || 'guest',
-                       color: safeHex(h.color, '#00f0ff'), form: '' };
+                       color: safeHex(h.color, '#00f0ff'), form: '', recordId };
         const layer = buildsGeometry ? openDecreeLayer(meta) : null;
 
-        applyCityOps(ops, meta.color, 0.01, { prompt: meta.prompt, origin: meta.origin, layer });
+        applyCityOps(ops, meta.color, 0.01,
+                     { prompt: meta.prompt, origin: meta.origin, layer, recordId });
         if (composition) {
           spawnProceduralEntities({
             type: 'none', composition, color: meta.color,
-            prompt: meta.prompt, origin: meta.origin, layer
+            prompt: meta.prompt, origin: meta.origin, layer, recordId
           });
         }
         if (layer) closeDecreeLayer();
@@ -4778,6 +5120,7 @@ Compose a form that belongs in this city.`;
       Object.keys(cityOverrides).forEach((k) => { cityOverrides[k] = null; });
       applyCityOverrides(0.6);
       decreeHistory = [];
+      decreeRecordSeq = 0;
       lastResolvedState = null;
       try {
         localStorage.removeItem(WORLD_STORAGE_KEY);

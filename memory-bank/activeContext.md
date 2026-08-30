@@ -7,6 +7,33 @@ The application is fully functional, verified, and running as a self-contained w
 
 ## 2. Key Recent Implementations & Enhancements
 
+00. **Vocabulary, Parser & Ledger Pass** (most recent):
+   - **Macro parts 10 -> 20.** Added `wheel`, `rotor`, `pod` (machine/vehicle), `dome`,
+     `stair_terrace`, `panel_array`, `antenna` (structure), `sensor_orb`, `tentacle`,
+     `root_web` (organic/surveillance). The gap they close: anything outside the old ten
+     degraded to raw primitives and read as an abstract shape. The phase-B prompt now
+     groups the list by category so the model can find the right part fast.
+   - **`verifyMacroCosts()`** builds every macro once at boot with counting stubs and warns
+     on drift, because a wrong `cost` silently corrupts the 60-mesh ceiling.
+   - Two parts were corrected against the render, not on paper: `panel_array`'s mullions
+     sat flush with the face and vanished into the slab (now proud of it at z=+0.06), and
+     `root_web` splayed upward like a flower opening (now thick at the crown with the tips
+     going down and outward).
+   - **Word-boundary keyword matching** (`src/keywords.js`, 17 tests). Substring `includes`
+     had `ai` firing on "rain"/"air"/"said", `hat` on "that", `ring` on "during", `tree` on
+     "street", and in `localCityOps` — never previously audited — `ice` on "police", `sand`
+     on "thousand", `tide` on "outside", `red` on "hundred", `ash` on "crash", `war` on
+     "warm", `emp` on "empire". A keyless kiosk runs on this parser, so "increase police
+     patrols" literally encased the city in ice. Two matchers, `word()` and `stem()`,
+     because the vocabulary needs both.
+   - **Ledger renders per DECREE, not per layer.** It read off `worldLayers`, which only
+     exist for decrees that produce geometry, so an edit-only decree left the panel saying
+     "City unmarked" while the city was visibly flooded. Rows now come from the persisted
+     history; layers carry a `recordId` so a decree's ops and its form group into one row
+     reading "form · N edits · N obj". Presets and ambient spawns, which are not decrees,
+     still get their own rows. Snapshot format is v2; v1 is still readable.
+
+
 0. **Exhibition Robustness Pass** (most recent):
    - **Bounded inference**: every Gemini request carries an 8s `AbortController` deadline.
      Previously a stalled (not failed) request left the `await` unsettled, so the decree

@@ -94,15 +94,23 @@
       persisted world accretion, and a validator test suite (`npm test`, 23 tests).
       Verified in a browser: reload restores the standing city, the wipe control clears it,
       a forced `WEBGL_lose_context` loss recovers, and a decree completes in a hidden tab.
-- [ ] **The ledger under-reports**: `STANDING DECREES` is rendered from `worldLayers`, which
-      only exist for decrees that produce geometry. A decree that only floods or retextures
-      the city leaves the panel reading "City unmarked" while the city visibly holds it.
-      Now that `decreeHistory` is persisted, the ledger could render from that instead.
+- [x] **The ledger under-reported** — FIXED. Rows now come from the persisted
+      `decreeHistory`, with layers carrying a `recordId` so one decree is one row showing
+      "form · N edits · N obj". Edit-only decrees appear; presets keep their own rows.
 - [ ] **Cache guest decrees** in localStorage keyed by normalised prompt — exhibition visitors
       repeat each other heavily, so a 30-50% hit rate is realistic once traffic is real.
 - [ ] Widen world axes beyond nature/tech/order: weather, time-of-day, water level, density.
-- [ ] Word-boundary fixes in `localSemanticParser` — `ai` currently matches *rain/air/said*,
-      `hat` matches *that/what*, `ring` matches *during*. Default engine when no API key is set.
+- [x] **Word-boundary fixes** — FIXED in `src/keywords.js` (17 tests). Covered both
+      `localSemanticParser` AND `localCityOps`, which had the worse bugs: `ice` matched
+      "police", `sand` "thousand", `tide` "outside", `red` "hundred", `war` "warm".
+- [x] **Macro vocabulary 10 -> 20 parts** — added wheel/rotor/pod, dome/stair_terrace/
+      panel_array/antenna, sensor_orb/tentacle/root_web, with a boot-time check that each
+      part's declared `cost` matches the meshes it builds.
+- [ ] **Measure the wider vocabulary against live Gemini.** The parts are verified to build
+      and to read correctly in isolation, but which of the twenty the model actually reaches
+      for — and whether the categorised prompt list improves part selection — is unmeasured.
+      Re-run the four probes (dragon, cathedral, cargo-walker, jellyfish) plus vehicle- and
+      surveillance-shaped decrees that the old ten could not serve.
 - [ ] Three.js `EffectComposer` + `UnrealBloomPass` for optical lens bloom.
 - [ ] Live microphone audio waveform visualizer rendered directly onto the billboard during speech.
 - [ ] External `.glb` / Blender asset loader with Draco compression.
