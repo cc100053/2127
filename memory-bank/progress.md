@@ -89,6 +89,15 @@
       it hand-duplicates bilateral parts (cargo-walker: 25 duplicate-pair matches). Mitigated
       by raising DSL_MAX_NODES 14 -> 20 rather than spending more calls. Worth one more prompt
       iteration someday, or drop `mirror` from the schema as dead weight.
+- [x] **Exhibition robustness pass** — done. Request timeouts, turn-scoped decree lock,
+      frame-rate-independent motion, WebGL context recovery, throttled billboard repaints,
+      persisted world accretion, and a validator test suite (`npm test`, 23 tests).
+      Verified in a browser: reload restores the standing city, the wipe control clears it,
+      a forced `WEBGL_lose_context` loss recovers, and a decree completes in a hidden tab.
+- [ ] **The ledger under-reports**: `STANDING DECREES` is rendered from `worldLayers`, which
+      only exist for decrees that produce geometry. A decree that only floods or retextures
+      the city leaves the panel reading "City unmarked" while the city visibly holds it.
+      Now that `decreeHistory` is persisted, the ledger could render from that instead.
 - [ ] **Cache guest decrees** in localStorage keyed by normalised prompt — exhibition visitors
       repeat each other heavily, so a 30-50% hit rate is realistic once traffic is real.
 - [ ] Widen world axes beyond nature/tech/order: weather, time-of-day, water level, density.

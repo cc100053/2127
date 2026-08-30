@@ -7,6 +7,35 @@ The application is fully functional, verified, and running as a self-contained w
 
 ## 2. Key Recent Implementations & Enhancements
 
+0. **Exhibition Robustness Pass** (most recent):
+   - **Bounded inference**: every Gemini request carries an 8s `AbortController` deadline.
+     Previously a stalled (not failed) request left the `await` unsettled, so the decree
+     lock and the transmit button were never released — the kiosk was dead until reloaded.
+   - **No load-bearing animation**: `settleWithin()` races any wait on a GSAP callback
+     against a real timer. rAF and the GSAP ticker freeze whenever the page is hidden
+     (minimised window, covered display, another virtual desktop), which hung a decree
+     indefinitely — reproduced directly in a hidden tab, and fixed.
+   - **Decree lock is turn-scoped**: `releaseDecreeControls(myTurn)` no-ops for a superseded
+     turn, so a decree finishing its slower phase B can no longer unlock a newer one.
+   - **Frame-rate independence**: `animate()` derives `delta` (clamped to 50ms) and
+     `frameScale`; every per-frame `+=` is scaled by it. Drones, halos, citizen gaits and
+     composed-form spins previously ran at double speed on a 120Hz display.
+   - **WebGL context recovery**: `webglcontextlost` / `webglcontextrestored` are handled and
+     the render loop parks and resumes, instead of the installation going to a black canvas.
+   - **Billboard throttling**: the 1024x384 canvas repaint plus texture upload now runs at
+     20fps while resolving and 10fps while broadcasting, not once per rendered frame.
+   - **World persistence**: enacted decrees are stored as validated recipes in
+     `localStorage` (`2127_WORLD_SNAPSHOT`) and replayed on boot, so the accreted city
+     survives a reload. `#btn-wipe-world` on the ledger clears it deliberately.
+   - **Validators extracted**: `src/validate.js` holds `sanitizeComposition` /
+     `sanitizeCityOps` / `clampNum` / `clampVec3` / `safeHex`, loaded verbatim by the page
+     and by `node --test`. The vocabulary is injected, so the module needs no THREE.js.
+     Extraction also closed a latent prototype-chain hole (`part: "constructor"` was truthy
+     against `DSL_MACROS` and poisoned the mesh budget); `hasOwnProperty` now gates it.
+   - **Input hardening**: 280-char cap on the decree (markup and handler), and the debug
+     panel's model-authored colours and labels go through `safeHex` / `escapeLedgerText`.
+
+
 1. **Target Year Re-Branding**:
    - Re-branded all systems, UI readouts, system prompts, sky-billboards, and storage keys to **2127**.
 

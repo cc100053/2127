@@ -35,6 +35,12 @@ Guests input text decrees or voice statements describing their vision or law for
 - **Persistent World Accretion**:
   - Decrees layer onto the city instead of erasing it — the world carries the marks of every guest who came before.
   - A `STANDING DECREES` ledger shows what the city is still holding, and from whom.
+  - **The accretion survives a reload.** Each enacted decree's validated recipe (its ops and
+    its composed form) is written to `localStorage`, and replayed on boot — so a refresh, a
+    crash, or an overnight restart hands the next visitor the city the last one left, not an
+    empty grid. A `WIPE` control on the ledger clears it deliberately.
+  - Recipes are re-validated on the way back in, so a hand-edited store is no more dangerous
+    than a hostile model response.
 - **City Edit Ops — the decree rewrites the city that is already standing**:
   - Beyond the three societal sliders, a decree issues bounded edits against the existing metropolis: `retexture_buildings` (11 skins from fungal to crystal to rusted), `set_building_height`, `tilt_buildings`, `flood`, `ground_cover` (9 covers), `set_sky`, `set_windows`, and `replace_buildings` — which tears down a fraction of the skyline and stands a model-composed form on every emptied plot.
   - **Ops persist.** Each kind holds one slot until a later decree supersedes it, so the city a visitor walks into still wears the marks of everyone before them. Retiring a layer restores the skyline it replaced.
@@ -45,6 +51,8 @@ Guests input text decrees or voice statements describing their vision or law for
   - Strictly data — model output is never evaluated. A hardened validator clamps, drops or rejects anything malformed and falls back to the hand-built spawners.
 - **Layered AI Engine with Graceful Degradation**:
   - `gemini-2.5-flash` first, using strict structured-output response schemas.
+  - Every request is bounded by an 8s timeout, so a stalled network degrades to the next
+    model rather than hanging the kiosk with its controls locked.
   - Falls back to `gemini-2.5-flash-lite` when Flash is rate-limited (429) or erroring (5xx).
   - Falls back again to a built-in offline semantic parser if neither model responds, so the installation never goes dead.
   - A bad key or malformed request (400/401/403) stops the chain immediately rather than burning quota on a retry that would fail identically.
@@ -108,6 +116,39 @@ npx serve .
 ## Gemini 2.5 Flash Structured Schema Contract
 
 ---
+
+## Exhibition Robustness
+
+The piece is built to run unattended for days:
+
+- **Bounded inference.** Every model request carries an 8s deadline; a stall advances the
+  chain and ultimately reaches the offline parser. No wait on a cosmetic animation is
+  load-bearing either — rAF freezes when the page is hidden, so those waits race a timer.
+- **Frame-rate independence.** All per-frame motion is scaled by a delta clamped to 50ms,
+  so the city runs at the same speed on a 30Hz and a 120Hz display and does not lurch when
+  a backgrounded tab comes forward.
+- **Context-loss recovery.** `webglcontextlost` / `webglcontextrestored` are handled, so a
+  kiosk that loses its GL context comes back on its own instead of going to a black canvas.
+- **A throttled billboard.** The sky-board's canvas repaint and texture upload run at
+  20fps while a decree is resolving and 10fps once it is broadcasting, not once per frame.
+- **Untrusted-by-default model output.** Nothing the model returns is ever evaluated. It is
+  validated into shape by [`src/validate.js`](./src/validate.js), which is covered by the
+  test suite below.
+
+## Tests
+
+No build step, so the checks are equally plain:
+
+```bash
+npm test     # parses every inline <script> in index.html, then runs the validator suite
+npm run check  # syntax check only
+```
+
+`src/validate.js` holds the validators for all model-authored data — the composition DSL and
+the city edit ops. They are the security and stability boundary of the installation and the
+only part pure enough to test without a browser, so they live in their own file and are
+loaded verbatim by both `index.html` and `node --test`. The geometry vocabulary they validate
+against stays in `index.html` beside the geometry that implements it, and is injected.
 
 ## Memory Bank (AI & Developer Handover System)
 
