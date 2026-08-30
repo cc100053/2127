@@ -58,15 +58,24 @@ Guests input text decrees or voice statements describing their vision or law for
     - *Structure*: `spire`, `arch`, `dome`, `stair_terrace`, `panel_array`, `antenna`
     - *Machine & vehicle*: `wheel`, `rotor`, `pod`
     - *Nature & apparatus*: `trunk_canopy`, `root_web`, `sensor_orb`, `ring_halo`
-  - Each part's declared mesh `cost` is what the 60-mesh ceiling charges against, so the
-    costs are verified against what each part actually builds once at boot.
+  - Each part's declared mesh `cost` is what the 60-mesh ceiling charges against, so at boot
+    `verifyMacroVocabulary()` checks every part against the meshes it actually builds AND
+    against the prompt that offers it.
+  - **Every structured-output enum is derived from the runtime vocabulary**, never restated.
+    A hand-written copy of the part list in the response schema went stale and made ten
+    parts literally unemittable — the model fell back to primitives and no prompt wording
+    could have reached them.
   - Bilateral parts are paired in code off the sign of their x offset, so symmetry never depends on the model remembering to ask for it.
   - Strictly data — model output is never evaluated. A hardened validator clamps, drops or rejects anything malformed and falls back to the hand-built spawners.
 - **Layered AI Engine with Graceful Degradation**:
   - `gemini-2.5-flash` first, using strict structured-output response schemas.
-  - Every request is bounded by an 8s timeout, so a stalled network degrades to the next
+  - Every request is bounded by a timeout, so a stalled network degrades to the next
     model rather than hanging the kiosk with its controls locked.
   - Falls back to `gemini-2.5-flash-lite` when Flash is rate-limited (429) or erroring (5xx).
+  - **Per-phase deadlines**, measured against the live API: 8s for the vectors (a guest is
+    watching a progress bar, so fail fast) and 30s for the form (nobody is blocked, and
+    Flash needs 9-25s with the full vocabulary in the prompt). A single shared 8s deadline
+    aborted Flash on every form call and silently served the whole exhibition from Lite.
   - Falls back again to a built-in offline semantic parser if neither model responds, so the installation never goes dead.
   - A bad key or malformed request (400/401/403) stops the chain immediately rather than burning quota on a retry that would fail identically.
 - **Exhibition HUD & Soundscape**:
@@ -134,8 +143,9 @@ npx serve .
 
 The piece is built to run unattended for days:
 
-- **Bounded inference.** Every model request carries an 8s deadline; a stall advances the
-  chain and ultimately reaches the offline parser. No wait on a cosmetic animation is
+- **Bounded inference.** Every model request carries a deadline sized to its phase (8s for
+  vectors, 30s for the form); a stall advances the chain and ultimately reaches the offline
+  parser. No wait on a cosmetic animation is
   load-bearing either — rAF freezes when the page is hidden, so those waits race a timer.
 - **Frame-rate independence.** All per-frame motion is scaled by a delta clamped to 50ms,
   so the city runs at the same speed on a 30Hz and a 120Hz display and does not lurch when

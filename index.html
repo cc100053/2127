@@ -859,7 +859,7 @@
       createCitizenFleet();
       createAtmosphericParticles();
 
-      verifyMacroCosts();
+      verifyMacroVocabulary();
 
       // Window resize listener
       window.addEventListener('resize', onWindowResize);
@@ -2262,12 +2262,73 @@
       }
     };
 
+    // The part list the model is shown. Hoisted out of the prompt so a boot check can
+    // confirm it names every part the renderer implements — the schema enum going
+    // stale already cost a regression that no prompt wording could have reached.
+    const FORM_PARTS_PROMPT = `PARTS — prefer these over raw primitives:
+  A node is either a macro 'part' (a ready-made anatomical cluster) or a raw 'prim'.
+  Reach for a part first: one part buys a recognisable feature that would cost you
+  five primitives to approximate badly.
+  CREATURE & BODY
+    - "limb"          a leg or arm, three jointed segments hanging DOWN from its box
+    - "wing"          a swept membrane with spars, filling the +X half of its box
+    - "fin"           a single swept blade, +X half of its box
+    - "tail"          a tapering tail running BACK along -Z
+    - "head"          skull, snout pointing +Z, two glowing eyes
+    - "segment_body"  a chain of masses along Z, thick amidships: serpent, whale, hull
+    - "tentacle"      a curled tapering strand hanging from the top of its box:
+                      tentacle, vine, hanging cable, root
+  STRUCTURE
+    - "spire"         a tapering tower with a tip, standing along +Y
+    - "arch"          two legs under a curved span: gateway, buttress, bridge
+    - "dome"          a domed shell filling its box: biosphere, vault, capitol,
+                      observatory. size [10,5,10] is a true hemisphere
+    - "stair_terrace" four stacked steps: ziggurat, amphitheatre, terraced garden
+    - "panel_array"   a mullioned panel facing +Z: solar array, screen wall, sail,
+                      billboard
+    - "antenna"       a mast with cross elements and a glowing tip: aerial, sensor
+                      tower, transmitter
+  MACHINE & VEHICLE
+    - "wheel"         tyre and hub, axle along X: wheel, roller, gear. Four wheels
+                      is TWO nodes, not four (see PAIRS)
+    - "rotor"         three pitched blades on a hub facing +Z: propeller, wind
+                      turbine, fan. Lay it flat for a helicopter with rot [90,0,0]
+    - "pod"           a closed hull along Z with a glowing window band: capsule,
+                      cockpit, seed, housing unit
+  NATURE & APPARATUS
+    - "trunk_canopy"  a stem carrying a mass on top: tree, mushroom, lamp
+    - "root_web"      five strands splaying down and outward: roots, mycelium,
+                      a cable bundle
+    - "sensor_orb"    a housing with a glowing iris looking along +Z: surveillance
+                      eye, camera, the face of anything that watches
+    - "ring_halo"     one flat ring around its origin: halo, orbital ring, portal
+  Raw prims remain available for anything the parts do not cover:
+  "box"|"sphere"|"cylinder"|"cone"|"torus"|"torusKnot"|"plane"|"ring"|"icosa"|"octa"|"tetra"
+  A raw prim is a LAST RESORT. If you find yourself writing "box" or "cylinder" or
+  "sphere", read the part list once more — there is very probably a part for it, and the
+  part will read as the thing while the primitive will read as a lump.
+
+CHOOSING A PART — match the thing to the part:
+  walks on legs ......... limb          rolls, or has gears ... wheel
+  flies ................. wing          spins, drives, blows .. rotor
+  swims ................. fin           long body, hull ....... segment_body
+  head or face .......... head          cockpit, capsule, seed  pod
+  watches, scans, films . sensor_orb    transmits at height ... antenna
+  stands tall ........... spire         domed, vaulted ........ dome
+  stepped, tiered ....... stair_terrace gateway, span, bridge . arch
+  flat, gathers light,
+    or displays ......... panel_array   tree, mushroom, lamp .. trunk_canopy
+  roots, cables, fungus . root_web      dangles, coils, grasps  tentacle
+  tapers behind ......... tail          halo, ring, portal .... ring_halo
+
+`;
+
     // `cost` is what the validator charges a node against the 60-mesh ceiling, so a
     // wrong number silently corrupts the budget — either starving legitimate forms or
     // letting a heavy one through. Build every macro once at boot with counting stubs
     // and warn on any drift. Twenty throwaway groups is nothing next to the city itself,
     // and it means the ceiling can be trusted.
-    function verifyMacroCosts() {
+    function verifyMacroVocabulary() {
       const drift = [];
       Object.entries(DSL_MACROS).forEach(([name, macro]) => {
         const scratch = [];
@@ -2282,7 +2343,12 @@
         }
         scratch.forEach((geom) => geom.dispose());
       });
-      if (drift.length) console.warn('[2127] macro cost drift:', drift.join('; '));
+      // A part the prompt never names is a part the model will never reach for, which is
+      // how ten new parts sat unused behind a stale schema enum.
+      Object.keys(DSL_MACROS).forEach((name) => {
+        if (!FORM_PARTS_PROMPT.includes('"' + name + '"')) drift.push(name + ': absent from the prompt');
+      });
+      if (drift.length) console.warn('[2127] macro vocabulary drift:', drift.join('; '));
       return drift;
     }
 
@@ -3847,17 +3913,30 @@
     // settles, the decree lock is never released, and the kiosk sits disabled until
     // someone reloads it. Every attempt is bounded so a hang degrades to the next model
     // and ultimately to the offline parser.
-    const MODEL_REQUEST_TIMEOUT_MS = 8000;
+    //
+    // The two phases want very different deadlines, and one shared value was measured to
+    // be actively harmful. Phase A answers in ~1.5s on Flash-Lite while a guest watches a
+    // progress bar, so it should give up early. Phase B runs on Flash at a ~13s median
+    // AFTER the guest has already seen their decree land — an 8s deadline there aborted
+    // Flash on every single call and silently served the whole exhibition from Flash-Lite,
+    // which is the opposite of what FORM_MODEL_CHAIN asks for.
+    const VECTOR_TIMEOUT_MS = 8000;    // guest is waiting: fail fast, fall back fast
+    // Measured against the live API: with the full part vocabulary in the prompt, Flash
+    // answers phase B in roughly 9-25s. At 22s it was still being aborted often enough to
+    // serve a good fraction of forms from Flash-Lite, so the budget is set above the
+    // observed ceiling. Nothing is waiting on this call — the guest saw their decree land
+    // at the end of phase A — so the only thing a longer budget costs is a later form.
+    const FORM_TIMEOUT_MS = 30000;     // nobody is blocked: let Flash finish and keep the quality
 
     // Walk a model chain in order, returning the first parsed payload. 429/5xx/network
     // errors and timeouts advance to the next model; 400/401/403 stop the chain because
     // a malformed request or bad key fails identically on every model.
-    async function callModelChain(chain, requestBody, apiKey) {
+    async function callModelChain(chain, requestBody, apiKey, timeoutMs = VECTOR_TIMEOUT_MS) {
       for (const model of chain) {
         const endpoint =
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), MODEL_REQUEST_TIMEOUT_MS);
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
         try {
           const response = await fetch(endpoint, {
             method: 'POST',
@@ -3882,7 +3961,7 @@
           return { parsed: JSON.parse(candidate), servedBy: model };
         } catch (err) {
           if (err && err.name === 'AbortError') {
-            console.warn(`[2127] ${model} timed out after ${MODEL_REQUEST_TIMEOUT_MS}ms`);
+            console.warn(`[2127] ${model} timed out after ${timeoutMs}ms`);
           } else {
             console.warn(`[2127] ${model} invocation failed:`, err);
           }
@@ -3987,7 +4066,8 @@ You must analyze this decree and output structured numerical values and zero-sho
         }
       };
 
-      const { parsed, servedBy } = await callModelChain(VECTOR_MODEL_CHAIN, requestBody, apiKey);
+      const { parsed, servedBy } = await callModelChain(
+        VECTOR_MODEL_CHAIN, requestBody, apiKey, VECTOR_TIMEOUT_MS);
 
       if (!parsed) {
         console.warn("[2127] All Gemini models unavailable — falling back to local parser.");
@@ -4093,47 +4173,7 @@ AXES — read this before placing anything:
   Cylinders and cones are built standing along Y. To lay one down so its length runs along
   Z, put the length in the y slot and set rot to [90, 0, 0].
 
-PARTS — prefer these over raw primitives:
-  A node is either a macro 'part' (a ready-made anatomical cluster) or a raw 'prim'.
-  Reach for a part first: one part buys a recognisable feature that would cost you
-  five primitives to approximate badly.
-  CREATURE & BODY
-    - "limb"          a leg or arm, three jointed segments hanging DOWN from its box
-    - "wing"          a swept membrane with spars, filling the +X half of its box
-    - "fin"           a single swept blade, +X half of its box
-    - "tail"          a tapering tail running BACK along -Z
-    - "head"          skull, snout pointing +Z, two glowing eyes
-    - "segment_body"  a chain of masses along Z, thick amidships: serpent, whale, hull
-    - "tentacle"      a curled tapering strand hanging from the top of its box:
-                      tentacle, vine, hanging cable, root
-  STRUCTURE
-    - "spire"         a tapering tower with a tip, standing along +Y
-    - "arch"          two legs under a curved span: gateway, buttress, bridge
-    - "dome"          a domed shell filling its box: biosphere, vault, capitol,
-                      observatory. size [10,5,10] is a true hemisphere
-    - "stair_terrace" four stacked steps: ziggurat, amphitheatre, terraced garden
-    - "panel_array"   a mullioned panel facing +Z: solar array, screen wall, sail,
-                      billboard
-    - "antenna"       a mast with cross elements and a glowing tip: aerial, sensor
-                      tower, transmitter
-  MACHINE & VEHICLE
-    - "wheel"         tyre and hub, axle along X: wheel, roller, gear. Four wheels
-                      is TWO nodes, not four (see PAIRS)
-    - "rotor"         three pitched blades on a hub facing +Z: propeller, wind
-                      turbine, fan. Lay it flat for a helicopter with rot [90,0,0]
-    - "pod"           a closed hull along Z with a glowing window band: capsule,
-                      cockpit, seed, housing unit
-  NATURE & APPARATUS
-    - "trunk_canopy"  a stem carrying a mass on top: tree, mushroom, lamp
-    - "root_web"      five strands splaying down and outward: roots, mycelium,
-                      a cable bundle
-    - "sensor_orb"    a housing with a glowing iris looking along +Z: surveillance
-                      eye, camera, the face of anything that watches
-    - "ring_halo"     one flat ring around its origin: halo, orbital ring, portal
-  Raw prims remain available for anything the parts do not cover:
-  "box"|"sphere"|"cylinder"|"cone"|"torus"|"torusKnot"|"plane"|"ring"|"icosa"|"octa"|"tetra"
-
-PAIRS:
+${FORM_PARTS_PROMPT}PAIRS:
   "limb", "wing", "fin", "wheel" and "tentacle" come in pairs. Describe ONE of them,
   on the +X side (a positive x in 'pos'), and the opposite side is built for you.
   Never write out both a left and a right one — you would get four.
@@ -4182,6 +4222,26 @@ in y, so the creature lies along its direction of travel instead of standing on 
 The wing and the limb are each written once, on the +X side, and their partners are
 built automatically. No primitive appears anywhere.
 
+WORKED EXAMPLE 2 — a machine, so the machine parts are not left as theory:
+{
+  "name": "cargo-walker", "anchor": "ground", "count": 3, "radius": 11, "scale": 1.0,
+  "nodes": [
+    { "part": "pod", "size": [3.4, 3.0, 7], "pos": [0, 3.2, 0], "rot": [0, 0, 0],
+      "color": "#7dd3fc", "emissive": 0.35, "metal": 0.7 },
+    { "part": "wheel", "size": [1.8, 1.8, 1.8], "pos": [1.7, 1.0, 2.2], "rot": [0, 0, 0],
+      "color": "#94a3b8", "emissive": 0.15, "metal": 0.9 },
+    { "part": "wheel", "size": [1.8, 1.8, 1.8], "pos": [1.7, 1.0, -2.2], "rot": [0, 0, 0],
+      "color": "#94a3b8", "emissive": 0.15, "metal": 0.9 },
+    { "part": "rotor", "size": [3, 3, 0.5], "pos": [0, 5.4, 1.5], "rot": [0, 0, 0],
+      "color": "#22d3ee", "emissive": 0.6, "metal": 0.5 },
+    { "part": "sensor_orb", "size": [1.2, 1.2, 1.2], "pos": [0, 4.2, 3.4], "rot": [0, 0, 0],
+      "color": "#f87171", "emissive": 0.9 }
+  ],
+  "animate": { "type": "bob", "speed": 0.8, "amp": 0.5, "axis": "y" }
+}
+Why this works: each wheel is written ONCE on the +X side and paired for you, so five
+nodes give a four-wheeled machine with a mast and a watching eye. Not one primitive.
+
 The composition field is REQUIRED on every response. If the decree summons no free-standing
 object — because it is a pure policy or mood, or because your ops already carry the whole
 change — return it with an empty nodes array: { "name": "none", "nodes": [] }. Never omit
@@ -4196,12 +4256,22 @@ Compose a form that belongs in this city.`;
       // Gemini response schemas have no $ref, so the composition shape is built once
       // here and referenced twice: as the free-standing form, and as the thing a
       // replace_buildings op stands on every emptied plot.
+      // Every enum below is DERIVED from the vocabulary the renderer actually implements.
+      // Hand-written copies silently went stale: the `part` enum still listed the original
+      // ten parts long after twenty existed, so structured output made the ten new ones
+      // literally unemittable — no amount of prompt wording could have reached them, and
+      // the model fell back to primitives instead. Never restate a vocabulary here.
+      const MACRO_PART_NAMES = Object.keys(DSL_MACROS);
+      const PRIM_NAMES = Object.keys(DSL_PRIMITIVES);
+      const SKIN_NAMES = Object.keys(CITY_SKINS);
+      const COVER_NAMES = Object.keys(GROUND_COVERS);
+
       const compositionSchema = {
         type: "OBJECT",
         description: "A form composed from macro parts and primitives",
         properties: {
           name: { type: "STRING" },
-          anchor: { type: "STRING", enum: ["ground", "sky", "center"] },
+          anchor: { type: "STRING", enum: Object.keys(Validate2127.DSL_ANCHORS) },
           count: { type: "NUMBER", description: "1-6 copies ringing the city" },
           radius: { type: "NUMBER", description: "0-16 distance from centre" },
           scale: { type: "NUMBER", description: "0.2-4 size multiplier" },
@@ -4211,8 +4281,8 @@ Compose a form that belongs in this city.`;
             items: {
               type: "OBJECT",
               properties: {
-                part: { type: "STRING", description: "Macro part; preferred over prim", enum: ["limb", "wing", "fin", "tail", "head", "spire", "arch", "trunk_canopy", "segment_body", "ring_halo"] },
-                prim: { type: "STRING", description: "Raw primitive; use only when no part fits", enum: ["box", "sphere", "cylinder", "cone", "torus", "torusKnot", "plane", "ring", "icosa", "octa", "tetra"] },
+                part: { type: "STRING", description: "Macro part; preferred over prim", enum: MACRO_PART_NAMES },
+                prim: { type: "STRING", description: "Raw primitive; use only when no part fits", enum: PRIM_NAMES },
                 size: { type: "ARRAY", items: { type: "NUMBER" } },
                 pos: { type: "ARRAY", items: { type: "NUMBER" } },
                 rot: { type: "ARRAY", items: { type: "NUMBER" }, description: "degrees" },
@@ -4227,7 +4297,7 @@ Compose a form that belongs in this city.`;
           animate: {
             type: "OBJECT",
             properties: {
-              type: { type: "STRING", enum: ["none", "spin", "bob", "orbit", "undulate", "pulse"] },
+              type: { type: "STRING", enum: Validate2127.DSL_ANIMATORS },
               speed: { type: "NUMBER" },
               amp: { type: "NUMBER" },
               axis: { type: "STRING", enum: ["x", "y", "z"] }
@@ -4256,12 +4326,11 @@ Compose a form that belongs in this city.`;
                   properties: {
                     op: {
                       type: "STRING",
-                      enum: ["retexture_buildings", "set_building_height", "tilt_buildings",
-                             "flood", "ground_cover", "set_sky", "set_windows", "replace_buildings"]
+                      enum: CITY_OPS
                     },
                     material: {
                       type: "STRING",
-                      description: "retexture_buildings: concrete|glass|chrome|fungal|coral|wood|rusted|bone|crystal|ash|ice — ground_cover: asphalt|grass|sand|water|ash|snow|circuit|lava|moss"
+                      description: `retexture_buildings: ${SKIN_NAMES.join('|')} — ground_cover: ${COVER_NAMES.join('|')}`
                     },
                     color: { type: "STRING", description: "Hex colour" },
                     multiplier: { type: "NUMBER", description: "set_building_height: 0.05-4" },
@@ -4283,7 +4352,8 @@ Compose a form that belongs in this city.`;
         }
       };
 
-      const { parsed, servedBy } = await callModelChain(FORM_MODEL_CHAIN, requestBody, apiKey);
+      const { parsed, servedBy } = await callModelChain(
+        FORM_MODEL_CHAIN, requestBody, apiKey, FORM_TIMEOUT_MS);
       if (!parsed) {
         console.warn("[2127] Form phase unavailable — city keeps its vectors, no edit or form.");
         return null;

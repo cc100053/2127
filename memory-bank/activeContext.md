@@ -7,6 +7,32 @@ The application is fully functional, verified, and running as a self-contained w
 
 ## 2. Key Recent Implementations & Enhancements
 
+000. **Live-API Verification Pass** (most recent — found two defects nothing else could):
+
+   - **The response schema's `part` enum was stale.** It still listed the original ten parts
+     after twenty existed, so structured output made the ten new ones *unemittable*. This is
+     why "cargo walkers rolling" came back as `box, box, limb, limb, box` and "surveillance
+     eyes" as `cylinder, segment_body` — the model was not ignoring the parts, it was
+     forbidden from naming them. No prompt wording could ever have fixed it, and only a live
+     call could have revealed it. **Every schema enum is now derived from the runtime
+     vocabulary** (`DSL_MACROS`, `DSL_PRIMITIVES`, `CITY_SKINS`, `GROUND_COVERS`, `CITY_OPS`,
+     `DSL_ANIMATORS`, `DSL_ANCHORS`). Never restate a vocabulary in a schema.
+     After the fix the same two prompts returned `pod, wheel, wheel, rotor, sensor_orb` and
+     `antenna, sensor_orb`, with zero primitives.
+   - **The 8s timeout was silently demoting every phase-B call.** Flash answers phase B in
+     9-25s; an 8s deadline aborted it every time and served the form from Flash-Lite, which
+     is the inverse of what FORM_MODEL_CHAIN asks for. Split into `VECTOR_TIMEOUT_MS` (8s,
+     guest waiting) and `FORM_TIMEOUT_MS` (30s, nobody blocked).
+   - `FORM_PARTS_PROMPT` is hoisted out of the prompt so `verifyMacroVocabulary()` can assert
+     at boot that every implemented part is both correctly costed AND named in the prompt.
+   - Prompt gains a subject->part routing table and a second worked example (a machine), so
+     the machine parts are demonstrated the way the dragon demonstrates the creature parts.
+   - Measured good: bilateral pairing works end to end (two `wheel` nodes at +x became four
+     wheels in the scene), declared mesh cost matches meshes built exactly (19 and 27 on two
+     live forms), and a full decree completes with the tab HIDDEN — confirming the
+     `settleWithin` fix under real ~50s two-phase latency.
+
+
 00. **Vocabulary, Parser & Ledger Pass** (most recent):
    - **Macro parts 10 -> 20.** Added `wheel`, `rotor`, `pod` (machine/vehicle), `dome`,
      `stair_terrace`, `panel_array`, `antenna` (structure), `sensor_orb`, `tentacle`,

@@ -106,11 +106,20 @@
 - [x] **Macro vocabulary 10 -> 20 parts** — added wheel/rotor/pod, dome/stair_terrace/
       panel_array/antenna, sensor_orb/tentacle/root_web, with a boot-time check that each
       part's declared `cost` matches the meshes it builds.
-- [ ] **Measure the wider vocabulary against live Gemini.** The parts are verified to build
-      and to read correctly in isolation, but which of the twenty the model actually reaches
-      for — and whether the categorised prompt list improves part selection — is unmeasured.
-      Re-run the four probes (dragon, cathedral, cargo-walker, jellyfish) plus vehicle- and
-      surveillance-shaped decrees that the old ten could not serve.
+- [x] **Measured the wider vocabulary against live Gemini** — done, and it found the real
+      bug: the response-schema `part` enum was stale, so the ten new parts were unemittable.
+      After deriving every enum from the runtime vocabulary, live probes reached for
+      `pod/wheel/rotor/sensor_orb` (cargo walkers), `antenna/sensor_orb` (surveillance),
+      `root_web` (mycelium), `dome` (glass dome) and `stair_terrace` (ziggurat).
+- [ ] **Latency is now the phase-B constraint**: Flash takes 9-25s on the fuller prompt
+      (median ~13s before it). FORM_TIMEOUT_MS is 30s to stay above the ceiling. If that
+      proves too slow in the gallery, the lever is trimming the prompt — the routing table
+      and second worked example are the newest and least-proven additions, and their
+      contribution has NOT been isolated from the enum fix.
+- [ ] **One live probe returned an empty composition** ("solar arrays and wind turbines",
+      36.8s, finishReason STOP). An immediate retry of the same prompt produced a valid
+      `rotor` form, so this reads as stochastic model quality rather than a defect — but if
+      empty forms recur in the gallery, retrying phase B once is the cheap mitigation.
 - [ ] Three.js `EffectComposer` + `UnrealBloomPass` for optical lens bloom.
 - [ ] Live microphone audio waveform visualizer rendered directly onto the billboard during speech.
 - [ ] External `.glb` / Blender asset loader with Draco compression.
