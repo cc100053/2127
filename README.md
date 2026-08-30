@@ -68,14 +68,16 @@ Guests input text decrees or voice statements describing their vision or law for
   - Bilateral parts are paired in code off the sign of their x offset, so symmetry never depends on the model remembering to ask for it.
   - Strictly data — model output is never evaluated. A hardened validator clamps, drops or rejects anything malformed and falls back to the hand-built spawners.
 - **Layered AI Engine with Graceful Degradation**:
-  - `gemini-2.5-flash` first, using strict structured-output response schemas.
+  - `gemini-3.5-flash-lite` first, using strict structured-output response schemas.
   - Every request is bounded by a timeout, so a stalled network degrades to the next
     model rather than hanging the kiosk with its controls locked.
-  - Falls back to `gemini-2.5-flash-lite` when Flash is rate-limited (429) or erroring (5xx).
+  - Falls back down a fixed chain — `gemini-3.1-flash-lite`, then `gemini-2.5-flash-lite`,
+    then `gemini-2.5-flash` — when a model is rate-limited (429) or erroring (5xx).
   - **Per-phase deadlines**, measured against the live API: 8s for the vectors (a guest is
-    watching a progress bar, so fail fast) and 30s for the form (nobody is blocked, and
-    Flash needs 9-25s with the full vocabulary in the prompt). A single shared 8s deadline
-    aborted Flash on every form call and silently served the whole exhibition from Lite.
+    watching a progress bar, so fail fast) and 30s for the form (nobody is blocked, and the
+    slowest model in the chain needs 9-25s with the full vocabulary in the prompt). A single
+    shared 8s deadline aborted the preferred model on every form call and silently served
+    the whole exhibition from further down the chain.
   - Falls back again to a built-in offline semantic parser if neither model responds, so the installation never goes dead.
   - A bad key or malformed request (400/401/403) stops the chain immediately rather than burning quota on a retry that would fail identically.
 - **Exhibition HUD & Soundscape**:

@@ -164,7 +164,8 @@ The application is fully functional, verified, and running as a self-contained w
      `autoStreamCountdown` resets). It was cycling 8 curated prompts every 16s — ~1,800 API
      calls per 8-hour day to obtain 8 distinct answers, which was the entire quota problem.
      The app is now silent when idle and costs nothing until a guest actually transmits.
-   - `MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.5-flash-lite']` is walked in order.
+   - `MODEL_CHAIN = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash-lite',
+     'gemini-2.5-flash']` is walked in order by both phases.
      429/5xx/network errors fall through to the next model; **400/401/403 break immediately**
      (malformed request or bad key would fail identically on the next model — don't pay twice).
      If every model fails, `localSemanticParser` still answers.

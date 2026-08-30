@@ -173,7 +173,7 @@
         <p class="text-[11px] text-slate-400 font-mono tracking-wider flex items-center gap-2">
           <span>CENTRAL SOCIETAL ENGINE</span>
           <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-          <span id="ai-status-text" class="text-emerald-400 font-semibold">ONLINE // GEMINI 2.5 READY</span>
+          <span id="ai-status-text" class="text-emerald-400 font-semibold">ONLINE // GEMINI READY</span>
         </p>
       </div>
     </div>
@@ -399,7 +399,7 @@
     <div class="cyber-panel px-6 py-4 rounded-xl flex items-center space-x-3 border-cyber-cyan shadow-[0_0_30px_rgba(0,240,255,0.4)]">
       <div class="w-6 h-6 border-2 border-cyber-cyan border-t-transparent rounded-full animate-spin"></div>
       <div class="font-mono text-sm">
-        <div id="loading-title" class="font-cyber font-bold text-cyber-cyan tracking-wider">GEMINI 2.5 RE-COMPUTING METROPOLIS...</div>
+        <div id="loading-title" class="font-cyber font-bold text-cyber-cyan tracking-wider">GEMINI RE-COMPUTING METROPOLIS...</div>
         <div id="loading-sub" class="text-[11px] text-slate-400">Morphing procedural geometry &amp; ecological parameters</div>
       </div>
     </div>
@@ -538,7 +538,7 @@
       <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
         <div class="flex items-center space-x-2 text-cyber-cyan font-cyber font-bold">
           <i data-lucide="shield-check" class="w-5 h-5"></i>
-          <span>GEMINI 2.5 FLASH CONFIG</span>
+          <span>GEMINI API CONFIG</span>
         </div>
         <button onclick="toggleApiModal(false)" class="text-slate-400 hover:text-white">
           <i data-lucide="x" class="w-5 h-5"></i>
@@ -3807,17 +3807,23 @@ CHOOSING A PART — match the thing to the part:
     }
 
     /* ==========================================================================
-       7. GEMINI 2.5 FLASH API & LOCAL FALLBACK NLP ENGINE
+       7. GEMINI API & LOCAL FALLBACK NLP ENGINE
        ========================================================================== */
     const GEMINI_API_STORAGE_KEY = '2127_GEMINI_API_KEY';
 
-    // Phase A (societal vectors + headline) runs on the fast model so the city reacts in
-    // ~2s. Phase B (the composed form) keeps Flash primary, where the quality matters.
-    const VECTOR_MODEL_CHAIN = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
-    const FORM_MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
-    const MODEL_CHAIN = FORM_MODEL_CHAIN;   // retained for existing references
+    // One preference order for both phases: newest Flash-Lite first, oldest Flash last.
+    // The 3.x Lite models answer faster than 2.5 Flash and at least as well, so 2.5 Flash
+    // is now the bottom rung of the chain rather than the form phase's first choice.
+    const MODEL_CHAIN = [
+      'gemini-3.5-flash-lite',
+      'gemini-3.1-flash-lite',
+      'gemini-2.5-flash-lite',
+      'gemini-2.5-flash',
+    ];
+    const VECTOR_MODEL_CHAIN = MODEL_CHAIN;
+    const FORM_MODEL_CHAIN = MODEL_CHAIN;
     let envConfig = {};
-    let lastEngineLabel = 'GEMINI 2.5 FLASH';
+    let lastEngineLabel = 'GEMINI 3.5 FLASH LITE';
 
     // The page is static with no build step, so there is no bundler to inline .env.
     // Fetch and parse it at runtime instead. Served over http (npm run dev), this works;
@@ -3907,7 +3913,7 @@ CHOOSING A PART — match the thing to the part:
     document.getElementById('btn-api-modal').addEventListener('click', () => toggleApiModal(true));
 
     /* --------------------------------------------------------------------------
-       LLM Inference with Gemini 2.5 Flash Structured JSON Output
+       LLM Inference with Gemini Structured JSON Output
        -------------------------------------------------------------------------- */
     // A stalled request is worse than a failed one: without a deadline the await never
     // settles, the decree lock is never released, and the kiosk sits disabled until
@@ -3915,18 +3921,18 @@ CHOOSING A PART — match the thing to the part:
     // and ultimately to the offline parser.
     //
     // The two phases want very different deadlines, and one shared value was measured to
-    // be actively harmful. Phase A answers in ~1.5s on Flash-Lite while a guest watches a
-    // progress bar, so it should give up early. Phase B runs on Flash at a ~13s median
-    // AFTER the guest has already seen their decree land — an 8s deadline there aborted
-    // Flash on every single call and silently served the whole exhibition from Flash-Lite,
-    // which is the opposite of what FORM_MODEL_CHAIN asks for.
+    // be actively harmful. Phase A answers in ~1.5s on a Flash-Lite model while a guest
+    // watches a progress bar, so it should give up early. Phase B runs AFTER the guest has
+    // already seen their decree land, and a tight deadline there aborted the preferred
+    // model on every call, silently serving the whole exhibition from further down the
+    // chain — the opposite of what MODEL_CHAIN asks for.
     const VECTOR_TIMEOUT_MS = 8000;    // guest is waiting: fail fast, fall back fast
-    // Measured against the live API: with the full part vocabulary in the prompt, Flash
-    // answers phase B in roughly 9-25s. At 22s it was still being aborted often enough to
-    // serve a good fraction of forms from Flash-Lite, so the budget is set above the
-    // observed ceiling. Nothing is waiting on this call — the guest saw their decree land
-    // at the end of phase A — so the only thing a longer budget costs is a later form.
-    const FORM_TIMEOUT_MS = 30000;     // nobody is blocked: let Flash finish and keep the quality
+    // Measured against the live API: with the full part vocabulary in the prompt, phase B
+    // took roughly 9-25s on 2.5 Flash, and at 22s was still aborted often enough to push a
+    // good fraction of forms down the chain, so the budget sits above the observed ceiling.
+    // Nothing is waiting on this call — the guest saw their decree land at the end of
+    // phase A — so the only thing a longer budget costs is a later form.
+    const FORM_TIMEOUT_MS = 30000;     // nobody is blocked: let the model finish and keep the quality
 
     // Walk a model chain in order, returning the first parsed payload. 429/5xx/network
     // errors and timeouts advance to the next model; 400/401/403 stop the chain because
@@ -3953,7 +3959,11 @@ CHOOSING A PART — match the thing to the part:
           }
 
           const data = await response.json();
-          const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          // The 3.x models can return a thought part alongside the answer, so the JSON is
+          // not guaranteed to be parts[0]. Take the first part that actually carries text.
+          const candidate = (data.candidates?.[0]?.content?.parts || [])
+            .map((part) => part?.text)
+            .find((text) => typeof text === 'string' && text.trim());
           if (!candidate) {
             console.warn(`[2127] ${model} returned no text payload`);
             continue;

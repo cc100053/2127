@@ -12,7 +12,7 @@ All libraries are loaded via reliable CDNs in `index.html` to maintain zero-buil
 | **Lucide Icons** | `0.344.0` (unpkg) | Cyberpunk UI iconography |
 | **Web Audio API** | Native Browser API | Pure synthesized cyber soundscape (tones, chimes, whooshes, ambient drone) |
 | **Web Speech API** | Native Browser API | Browser-native speech-to-text voice recognition for exhibition mic |
-| **Google Gemini API** | `gemini-2.5-flash` | Structured JSON generative LLM parsing of citizen decrees |
+| **Google Gemini API** | `gemini-3.5-flash-lite` (chain: 3.1-flash-lite → 2.5-flash-lite → 2.5-flash) | Structured JSON generative LLM parsing of citizen decrees |
 
 ---
 
