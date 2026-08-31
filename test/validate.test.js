@@ -17,7 +17,7 @@ const vocab = {
   prims: { box: 1, sphere: 1, plane: 1, ring: 1 },
   skins: { fungal: 1, crystal: 1, rusted: 1 },
   covers: { moss: 1, sand: 1 },
-  ops: ['retexture_buildings', 'set_building_height', 'tilt_buildings', 'flood',
+  ops: ['retexture_buildings', 'set_building_height', 'tilt_buildings',
         'ground_cover', 'set_sky', 'set_windows', 'replace_buildings']
 };
 const { sanitizeComposition, sanitizeCityOps } = V.createValidators(vocab);
@@ -171,12 +171,8 @@ test('sanitizeCityOps validates enum-valued materials against the vocabulary', (
   assert.equal(ok[0].color, null, 'an unparseable colour becomes null, not the raw string');
 });
 
-test('sanitizeCityOps drops set_sky without a usable colour but defaults flood colour', () => {
+test('sanitizeCityOps drops set_sky without a usable colour', () => {
   assert.deepEqual(sanitizeCityOps([{ op: 'set_sky', color: 'midnight' }]), []);
-  const flood = sanitizeCityOps([{ op: 'flood', height: 999, opacity: 5, color: 'nope' }]);
-  assert.equal(flood[0].height, 9);
-  assert.equal(flood[0].opacity, 0.95);
-  assert.equal(flood[0].color, '#0d3a55');
 });
 
 test('sanitizeCityOps drops replace_buildings whose composition is unusable', () => {
@@ -187,17 +183,17 @@ test('sanitizeCityOps drops replace_buildings whose composition is unusable', ()
 });
 
 test('sanitizeCityOps caps how many ops one decree may issue', () => {
-  const flood = Array.from({ length: 50 }, () => ({ op: 'flood' }));
-  assert.ok(sanitizeCityOps(flood).length <= V.MAX_OPS_PER_DECREE);
+  const tilts = Array.from({ length: 50 }, () => ({ op: 'tilt_buildings' }));
+  assert.ok(sanitizeCityOps(tilts).length <= V.MAX_OPS_PER_DECREE);
 });
 
 test('sanitizeCityOps never returns an op outside the permitted vocabulary', () => {
   const out = sanitizeCityOps([
     { op: 'retexture_buildings', material: 'crystal' }, { op: 'set_building_height', multiplier: 2 },
-    { op: 'tilt_buildings' }, { op: 'flood' }, { op: 'ground_cover', material: 'moss' },
+    { op: 'tilt_buildings' }, { op: 'ground_cover', material: 'moss' },
     { op: 'set_sky', color: '#112233' }, { op: 'set_windows' },
     { op: 'replace_buildings', composition: form() }
   ]);
-  assert.equal(out.length, 8);
+  assert.equal(out.length, 7);
   for (const o of out) assert.ok(vocab.ops.includes(o.op));
 });

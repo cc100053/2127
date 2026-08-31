@@ -6,3 +6,6 @@ node_modules/
 
 # Local secrets — never commit a real key
 .env
+
+# Local debug output
+firebase-debug.log

@@ -147,14 +147,6 @@
           case 'tilt_buildings':
             out.push({ op, degrees: clampNum(o.degrees, 0, 45, 0) });
             break;
-          case 'flood':
-            out.push({
-              op,
-              height: clampNum(o.height, 0, 9, 1.5),
-              color: safeHex(o.color, '#0d3a55'),
-              opacity: clampNum(o.opacity, 0.2, 0.95, 0.72)
-            });
-            break;
           case 'ground_cover': {
             const material = Object.prototype.hasOwnProperty.call(covers, o.material) ? o.material : null;
             if (!material) continue;

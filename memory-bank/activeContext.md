@@ -1,5 +1,8 @@
 # Active Context: "2127 World Shaper"
 
+## Repository Publication
+- **2026-08-31:** Pushed the existing `master` branch to [github.com/cc100053/2127](https://github.com/cc100053/2127).
+
 ## 1. Current State of the Codebase
 The application is fully functional, verified, and running as a self-contained web prototype in [`/Users/fatboy/2127/index.html`](file:///Users/fatboy/2127/index.html).
 
@@ -7,7 +10,74 @@ The application is fully functional, verified, and running as a self-contained w
 
 ## 2. Key Recent Implementations & Enhancements
 
-0000. **Japanese UI Localization** (most recent):
+00000000. **Removed the `flood` city op & the zero-shot demo chip row** (most recent):
+   - `flood` is gone from the closed vocabulary: dropped from `CITY_OPS` in
+     `index.html` (the single source `sanitizeCityOps` checks membership against),
+     the now-dead `case 'flood'` in `src/validate.js`, `cityOverrides.flood` +
+     `floodPlane` + `applyFloodOverride()`, the `STYLE_LOCK.forceOps`/`lockOps()`
+     entries, both Gemini phase-B prompt/schema mentions, and the offline keyword
+     parser's flood-keyword block. `test/validate.test.js` updated to match (vocab
+     fixture, the dedicated flood test removed, the two vocabulary-sweep tests
+     switched to a still-valid op).
+   - Deleted the "✨ ゼロショットAI" demo-chip row (green hats, tentacles, UFOs, etc.)
+     that sat directly above the decree input — it was the "button bar on top of
+     the enter block". Removed the now-dead `window.submitWildPrompt` with it
+     (nothing else called it). Free-form decree submission is unaffected.
+   - `npm test` (40) + `npm run check` still green; verified live — no flood plane,
+     no chip row, input sits right under the city, no console errors.
+
+0000000. **Removed scene fog & the quick-preset button row**:
+   - Deleted `scene.fog` entirely: the `FogExp2` creation in `init3D()`, its color/
+     density tweens in `applyCityOverrides` (tied to `set_sky` ops) and
+     `applyStateTransformation` (tied to order level), and the `fog:` field +
+     assignment in `LIGHTING_MODES`/`applyLightingMode`. `set_sky`'s `fogDensity`
+     field is still accepted/sanitized (part of the closed vocab / Gemini schema)
+     but is now simply unused by the renderer.
+   - Deleted the "Quick presets" button row (solarpunk/cyberpunk/wasteland/
+     biosynth/kyoto) — it sat mid-viewport in the footer and blocked the city view.
+     Removed the now-dead `PRESETS` object and `window.applyPreset` along with it
+     (nothing else referenced them). Free-form decree submission and the wild/
+     zero-shot demo chips are unaffected.
+   - `npm test` (40) + `npm run check` still green; verified live — no haze/fog,
+     the city is unobstructed, no console errors.
+
+000000. **Removed rooftop searchlight beams & atmospheric particles**:
+   - Deleted `createSearchlights()` (the upward-sweeping cyan/pink cyber beam cones on
+     towers + the billboard apex) and `createAtmosphericParticles()` (cyber sparks,
+     bio-spores, smoke) entirely, plus every reference: the `searchlights`/
+     `particleSystems` declarations, the two `init3D()` calls, their per-decree color/
+     opacity tweens in `applyStateTransformation`, and their per-frame drift/sweep in
+     `animate()`. They fired unconditionally on every preset and prompt-driven scene,
+     clashed with the Kyoto garden lock, and read as visual clutter. `npm test` (40) +
+     `npm run check` still green; verified live — no beams/haze, no console errors.
+
+00000. **Kyoto Garden Style Lock**:
+   - Style #2 (misted Kyoto temple-garden: timber, moss, still water, low eaves) is now a
+     runtime harness every decree is projected into, using two chokepoints every path
+     already routes through rather than editing each of Phase A/B/offline/preset/restore
+     individually:
+     - `applyStateTransformation` clamps `natureLevel`/`techLevel`/`orderLevel` into
+       `STYLE_LOCK.clamp` and forces `dominantColor` to the garden hex, for every state
+       transition (decrees, presets, boot welcome, restored snapshots).
+     - `applyCityOps` runs every ops array through `lockOps()` first: drops guest
+       `retexture_buildings`/`ground_cover`/`set_sky`/`set_windows`/`tilt_buildings` in
+       favour of `STYLE_LOCK.forceOps` (wood/moss/misted sky/warm windows/no tilt),
+       keeps `replace_buildings` as-is, and clamps `set_building_height`/`flood` into
+       garden-safe ranges (low-rise, shallow pond) instead of dropping them.
+   - Boot calls `applyCityOps(lockOps([]), …)` + forces the `sun` lighting mode right
+     after `init3D()` so a fresh grid (or one with no restorable history) starts locked;
+     `wipeWorld()` does the same instead of the old bare `applyCityOverrides` call.
+   - Both Gemini system prompts get a short style-lock preamble (steers the model
+     toward compliant values/materials so the clamps rarely have to do real work) —
+     the offline keyword parser needed no changes since the ops lock applies
+     regardless of what it detects.
+   - New `kyoto` entry in `PRESETS` + a 京都庭園 preset button next to the other four.
+   - `STYLE_LOCK.enabled = true` is the single on/off switch (flip to `false` to fully
+     restore free-form behaviour). `npm test` (40) + `npm run check` still green;
+     verified live in a browser (boot settles to exactly nature 75%/tech 35%/order 80%
+     — the clamped values — and the palette is sage/moss/cream, not cyan).
+
+0000. **Japanese UI Localization**:
    - All visitor-facing UI is now Japanese: header/HUD/footer/API-modal markup, every
      `title=`/`placeholder=`, and all JS-set display strings (loading text, civilization
      states, decree ledger, debug/telemetry panel labels, billboard canvas `fillText`

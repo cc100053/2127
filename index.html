@@ -405,90 +405,8 @@
     </div>
   </div>
 
-  <!-- Bottom Command Console & Preset Bar -->
+  <!-- Bottom Command Console -->
   <footer class="relative z-20 p-4 md:p-6 w-full max-w-5xl mx-auto pointer-events-auto space-y-3">
-    <!-- Preset Chips Row -->
-    <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar justify-start md:justify-center">
-      <span class="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider hidden sm:inline-block px-1">
-        クイックプリセット:
-      </span>
-
-      <!-- Preset 1: Solarpunk Haven -->
-      <button onclick="applyPreset('solarpunk')" class="cyber-btn px-3 py-1.5 text-xs bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/50 text-emerald-200 flex items-center space-x-1.5 shrink-0 rounded">
-        <span>🌿</span>
-        <span class="font-semibold">ソーラーパンクの楽園</span>
-        <span class="text-[10px] text-emerald-400 opacity-75 hidden lg:inline">(自然: 1.0, 技術: 0.8, 秩序: 0.9)</span>
-      </button>
-
-      <!-- Preset 2: Cyberpunk Surveillance State -->
-      <button onclick="applyPreset('cyberpunk')" class="cyber-btn px-3 py-1.5 text-xs bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/50 text-cyan-200 flex items-center space-x-1.5 shrink-0 rounded">
-        <span>⚡</span>
-        <span class="font-semibold">サイバーパンク国家</span>
-        <span class="text-[10px] text-cyan-400 opacity-75 hidden lg:inline">(自然: 0.0, 技術: 1.0, 秩序: 1.0)</span>
-      </button>
-
-      <!-- Preset 3: Wasteland Anarchy -->
-      <button onclick="applyPreset('wasteland')" class="cyber-btn px-3 py-1.5 text-xs bg-red-950/60 hover:bg-red-900/80 border border-red-500/50 text-red-200 flex items-center space-x-1.5 shrink-0 rounded">
-        <span>☣️</span>
-        <span class="font-semibold">荒廃地のアナーキー</span>
-        <span class="text-[10px] text-red-400 opacity-75 hidden lg:inline">(自然: 0.1, 技術: 0.2, 秩序: 0.0)</span>
-      </button>
-
-      <!-- Preset 4: Neon Bio-Synth Oasis -->
-      <button onclick="applyPreset('biosynth')" class="cyber-btn px-3 py-1.5 text-xs bg-pink-950/60 hover:bg-pink-900/80 border border-pink-500/50 text-pink-200 flex items-center space-x-1.5 shrink-0 rounded">
-        <span>🔮</span>
-        <span class="font-semibold">バイオシンセのオアシス</span>
-        <span class="text-[10px] text-pink-400 opacity-75 hidden lg:inline">(自然: 0.9, 技術: 0.9, 秩序: 0.5)</span>
-      </button>
-    </div>
-
-    <!-- Wild / Unprepared Decrees Row (Demonstrating Zero-Shot Procedural AI) -->
-    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar justify-start md:justify-center">
-      <span class="text-[10px] font-mono text-purple-400 font-bold uppercase tracking-wider hidden sm:inline-block px-1">
-        ✨ ゼロショットAI:
-      </span>
-      <button onclick="submitWildPrompt('All citizens must wear bright green hats and march in unison')" class="cyber-btn px-2.5 py-1 text-[11px] bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-400/60 text-emerald-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(16,185,129,0.2)]">
-        <span>🎩</span>
-        <span>緑の帽子令</span>
-      </button>
-      <button onclick="submitWildPrompt('Spawn giant bioluminescent tentacles emerging from the ground')" class="cyber-btn px-2.5 py-1 text-[11px] bg-purple-950/80 hover:bg-purple-900 border border-purple-400/60 text-purple-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(168,85,247,0.2)]">
-        <span>🐙</span>
-        <span>生体触手</span>
-      </button>
-      <button onclick="submitWildPrompt('Transform metropolis towers into floating crystal monoliths with purple auras')" class="cyber-btn px-2.5 py-1 text-[11px] bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-400/60 text-indigo-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(99,102,241,0.2)]">
-        <span>💎</span>
-        <span>クリスタル・モノリス</span>
-      </button>
-      <button onclick="submitWildPrompt('Deploy a massive glowing planetary energy ring above the city')" class="cyber-btn px-2.5 py-1 text-[11px] bg-yellow-950/80 hover:bg-yellow-900 border border-yellow-400/60 text-yellow-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(234,179,8,0.2)]">
-        <span>🪐</span>
-        <span>惑星リング</span>
-      </button>
-      <button onclick="submitWildPrompt('Spawn a celestial quantum singularity black hole with glowing photon rings')" class="cyber-btn px-2.5 py-1 text-[11px] bg-orange-950/80 hover:bg-orange-900 border border-orange-400/60 text-orange-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(249,115,22,0.2)]">
-        <span>🌌</span>
-        <span>特異点</span>
-      </button>
-      <button onclick="submitWildPrompt('Deploy a fleet of cyber UFO alien saucers with tractor beams')" class="cyber-btn px-2.5 py-1 text-[11px] bg-sky-950/80 hover:bg-sky-900 border border-sky-400/60 text-sky-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(56,189,248,0.2)]">
-        <span>🛸</span>
-        <span>エイリアン艦隊</span>
-      </button>
-      <button onclick="submitWildPrompt('Only one building left standing as a colossal citadel')" class="cyber-btn px-2.5 py-1 text-[11px] bg-amber-950/80 hover:bg-amber-900 border border-amber-400/60 text-amber-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(245,158,11,0.2)]">
-        <span>🏛️</span>
-        <span>唯一のモノリス</span>
-      </button>
-      <button onclick="submitWildPrompt('All citizens must walk on 4 legs like cyber quadrupeds')" class="cyber-btn px-2.5 py-1 text-[11px] bg-rose-950/80 hover:bg-rose-900 border border-rose-400/60 text-rose-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(244,63,94,0.2)]">
-        <span>🐾</span>
-        <span>四足歩行プロトコル</span>
-      </button>
-      <button onclick="submitWildPrompt('All people must be at least 1.8m tall')" class="cyber-btn px-2.5 py-1 text-[11px] bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-400/60 text-cyan-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(0,240,255,0.2)]">
-        <span>📏</span>
-        <span>身長1.8m</span>
-      </button>
-      <button onclick="submitWildPrompt('Everyone must dance with floating golden halos and neon horns')" class="cyber-btn px-2.5 py-1 text-[11px] bg-pink-950/80 hover:bg-pink-900 border border-pink-400/60 text-pink-300 flex items-center space-x-1 shrink-0 rounded shadow-[0_0_8px_rgba(236,72,153,0.2)]">
-        <span>💃</span>
-        <span>光輪ダンスパーティ</span>
-      </button>
-    </div>
-
     <!-- Main Visitor Decree Input Console -->
     <div class="cyber-panel p-2.5 md:p-3 rounded-2xl shadow-2xl relative">
       <div class="corner-tl"></div><div class="corner-tr"></div>
@@ -597,40 +515,28 @@
       energyIndex: 98.4
     };
 
-    // Preset Definitions (as per 2127 specifications)
-    const PRESETS = {
-      solarpunk: {
-        natureLevel: 1.0,
-        techLevel: 0.8,
-        orderLevel: 0.9,
-        headline: "2127年: 垂直林が100%クリーンエネルギー自立を達成",
-        dominantColor: "#10b981",
-        stateName: "ソーラーパンクの頂点"
-      },
-      cyberpunk: {
-        natureLevel: 0.0,
-        techLevel: 1.0,
-        orderLevel: 1.0,
-        headline: "中央AIが24時間監視と最適生産性グリッドを施行",
-        dominantColor: "#00f0ff",
-        stateName: "サイバーパンク監視"
-      },
-      wasteland: {
-        natureLevel: 0.1,
-        techLevel: 0.2,
-        orderLevel: 0.0,
-        headline: "エネルギーグリッド障害が工業セクター4に混乱を誘発",
-        dominantColor: "#ef4444",
-        stateName: "荒廃地のアナーキー"
-      },
-      biosynth: {
-        natureLevel: 0.9,
-        techLevel: 0.9,
-        orderLevel: 0.5,
-        headline: "生物発光ネオン植物が実験的サイバー都市を駆動",
-        dominantColor: "#ec4899",
-        stateName: "ネオン・バイオシンセのオアシス"
-      }
+    /* --------------------------------------------------------------------------
+       STYLE HARNESS — style #2, Kyoto garden city. Every decree (Gemini or the
+       offline parser) is clamped into this envelope so the exhibition stays
+       on-look regardless of what a guest types. See applyStateTransformation
+       (vectors + color) and applyCityOps (surfaces) — the two chokepoints every
+       decree already routes through — for where the lock is enforced.
+       -------------------------------------------------------------------------- */
+    const STYLE_LOCK = {
+      enabled: true,
+      lighting: 'sun',
+      moodHex: '#5f8f6a',
+      clamp: { natureLevel: [0.75, 1.00], techLevel: [0.05, 0.35], orderLevel: [0.70, 0.95] },
+      // Closed-vocab ops only, re-asserted on every decree. Guest ops may still add
+      // replace_buildings (a spawned form), and nudge height within a safe range.
+      forceOps: [
+        { op: 'retexture_buildings', material: 'wood',   color: '#6b4a2f' },
+        { op: 'ground_cover',        material: 'moss',   color: '#24382a' },
+        { op: 'set_sky',             color: '#8aa39a',   fogDensity: 0.028 },
+        { op: 'set_windows',         lit: 0.42,          color: '#e8c99a' },
+        { op: 'set_building_height', multiplier: 0.42 },
+        { op: 'tilt_buildings',      degrees: 0 }
+      ]
     };
 
     /* ==========================================================================
@@ -759,14 +665,8 @@
     let hemiLight;
     const districtLights = [];
     const streetlights = [];
-    const searchlights = [];
     const buildingWindows = [];
     let currentLightingMode = 'ultra'; // 'ultra' | 'sun' | 'sunset'
-    let particleSystems = {
-      cyber: null,
-      spores: null,
-      smoke: null
-    };
     let billboardMesh, billboardTexture, billboardCanvas, billboardCtx;
     let haloRings = [];
 
@@ -774,7 +674,6 @@
       // Scene
       scene = new THREE.Scene();
       scene.background = new THREE.Color('#07090e');
-      scene.fog = new THREE.FogExp2('#07090e', 0.012);
 
       dynamicEntitiesGroup = new THREE.Group();
       scene.add(dynamicEntitiesGroup);
@@ -852,12 +751,10 @@
       createGroundGrid();
       createProceduralCity();
       createStreetlights();
-      createSearchlights();
       createDynamicBillboard();
       createFloraEcosystem();
       createDroneFleet();
       createCitizenFleet();
-      createAtmosphericParticles();
 
       verifyMacroVocabulary();
 
@@ -1158,55 +1055,6 @@
           bulbMat: bulbMat,
           groundMat: groundMat,
           baseColor: 0x00f0ff
-        });
-      });
-    }
-
-    /* --------------------------------------------------------------------------
-       Sweeping Rooftop Volumetric Searchlights & Cyber Laser Beams
-       -------------------------------------------------------------------------- */
-    function createSearchlights() {
-      // Mount volumetric searchlights on high towers
-      const towerSpots = [
-        { x: -4.5, y: 12, z: -4.5, speed: 0.8, phase: 0 },
-        { x: 4.5, y: 14, z: -4.5, speed: -0.7, phase: 1.5 },
-        { x: -4.5, y: 13, z: 4.5, speed: -0.9, phase: 3.0 },
-        { x: 4.5, y: 15, z: 4.5, speed: 0.75, phase: 4.5 },
-        { x: 0, y: 18, z: 0, speed: 1.2, phase: 2.2 } // Central billboard apex beam
-      ];
-
-      const beamGeom = new THREE.CylinderGeometry(0.12, 3.4, 32, 16, 1, true);
-      beamGeom.translate(0, 16, 0);
-      beamGeom.rotateX(Math.PI / 3.8); // 50-degree upward sweep
-
-      towerSpots.forEach((spot, i) => {
-        const pivot = new THREE.Group();
-        pivot.position.set(spot.x, spot.y, spot.z);
-
-        const beamMat = new THREE.MeshBasicMaterial({
-          color: (i % 2 === 0) ? 0x00f0ff : 0xff007f,
-          transparent: true,
-          opacity: 0.32,
-          blending: THREE.AdditiveBlending,
-          side: THREE.DoubleSide
-        });
-
-        const beam = new THREE.Mesh(beamGeom, beamMat);
-        pivot.add(beam);
-
-        // Bright beacon sphere at base of beam
-        const emitterGeom = new THREE.SphereGeometry(0.25, 8, 8);
-        const emitterMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        const emitter = new THREE.Mesh(emitterGeom, emitterMat);
-        pivot.add(emitter);
-
-        scene.add(pivot);
-
-        searchlights.push({
-          pivot: pivot,
-          beamMat: beamMat,
-          speed: spot.speed,
-          phase: spot.phase
         });
       });
     }
@@ -2501,7 +2349,7 @@ CHOOSING A PART — match the thing to the part:
        City edit ops.
 
        Three societal scalars are a three-dimensional latent space, and every decree
-       ever spoken was being projected onto it. "Flood the streets", "grow fungus on
+       ever spoken was being projected onto it. "Darken the sky", "grow fungus on
        the towers" and "plant a forest" all landed on roughly the same city and then
        got a decorative object parked beside it — the guest reads that as not being
        understood, even when the model understood perfectly.
@@ -2546,7 +2394,7 @@ CHOOSING A PART — match the thing to the part:
     };
 
     const CITY_OPS = ['retexture_buildings', 'set_building_height', 'tilt_buildings',
-                      'flood', 'ground_cover', 'set_sky', 'set_windows', 'replace_buildings'];
+                      'ground_cover', 'set_sky', 'set_windows', 'replace_buildings'];
 
     // What the city is currently holding, over and above the societal vectors.
     // One slot per op kind: a new op of that kind supersedes the old one.
@@ -2554,12 +2402,10 @@ CHOOSING A PART — match the thing to the part:
       skin: null,      // { material, color }
       height: null,    // { multiplier }
       tilt: null,      // { degrees }
-      flood: null,     // { height, color, opacity }
       ground: null,    // { material, color }
       sky: null,       // { color, fogDensity }
       windows: null    // { lit, color }
     };
-    let floodPlane = null;
 
     // Both validators are closed over this page's geometry vocabulary and are defined
     // in src/validate.js. Nothing the model returns is ever evaluated — only shaped.
@@ -2571,9 +2417,28 @@ CHOOSING A PART — match the thing to the part:
       ops:    CITY_OPS
     });
 
+    // Style-lock chokepoint: every caller of applyCityOps (decree ops, world restore,
+    // wipe, boot) routes through here, so re-asserting the envelope once at the top
+    // covers all of them. Drops guest surface ops (skin/ground/sky/windows/tilt) in
+    // favour of the locked ones; keeps replace_buildings as-is and clamps height to
+    // a garden-safe range instead of dropping it outright.
+    function lockOps(ops) {
+      if (!STYLE_LOCK.enabled) return ops || [];
+      const kept = [];
+      (ops || []).forEach((o) => {
+        if (o.op === 'replace_buildings') kept.push(o);
+        else if (o.op === 'set_building_height') {
+          kept.push({ op: o.op, multiplier: Math.min(0.85, Math.max(0.22, o.multiplier ?? 0.42)) });
+        }
+        // skin/ground/sky/windows/tilt are dropped — STYLE_LOCK.forceOps wins those
+      });
+      return STYLE_LOCK.forceOps.concat(kept);
+    }
+
     // Records ops into cityOverrides, then asserts them. `replace_buildings` is the
     // one op that produces geometry, so it goes through the normal layer lifecycle.
     function applyCityOps(ops, moodHex, duration = 2.0, ctx = {}) {
+      ops = lockOps(ops);
       if (!ops || ops.length === 0) return 0;
       let applied = 0;
 
@@ -2582,7 +2447,6 @@ CHOOSING A PART — match the thing to the part:
           case 'retexture_buildings': cityOverrides.skin = o; break;
           case 'set_building_height': cityOverrides.height = o; break;
           case 'tilt_buildings':      cityOverrides.tilt = o; break;
-          case 'flood':               cityOverrides.flood = o; break;
           case 'ground_cover':        cityOverrides.ground = o; break;
           case 'set_sky':             cityOverrides.sky = o; break;
           case 'set_windows':         cityOverrides.windows = o; break;
@@ -2731,38 +2595,7 @@ CHOOSING A PART — match the thing to the part:
       if (ov.sky) {
         const c = new THREE.Color(ov.sky.color);
         gsap.to(scene.background, { r: c.r, g: c.g, b: c.b, duration, overwrite: true });
-        gsap.to(scene.fog.color, { r: c.r, g: c.g, b: c.b, duration, overwrite: true });
-        gsap.to(scene.fog, { density: ov.sky.fogDensity, duration, overwrite: true });
       }
-
-      applyFloodOverride(duration);
-    }
-
-    // One reused plane rather than a fresh mesh per decree — it is a property of the
-    // city, not of any one guest's layer, so it never enters the entity budget.
-    function applyFloodOverride(duration) {
-      const ov = cityOverrides.flood;
-      if (!ov) {
-        if (floodPlane) gsap.to(floodPlane.material, { opacity: 0, duration, overwrite: true });
-        return;
-      }
-
-      if (!floodPlane) {
-        const span = GRID_SIZE * TILE_SIZE * 1.12;   // just past the outer plots
-        const geom = new THREE.PlaneGeometry(span, span, 1, 1);
-        geom.rotateX(-Math.PI / 2);
-        floodPlane = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
-          color: 0x0d3a55, transparent: true, opacity: 0,
-          roughness: 0.06, metalness: 0.85, side: THREE.DoubleSide
-        }));
-        floodPlane.renderOrder = 2;
-        scene.add(floodPlane);
-      }
-
-      const c = new THREE.Color(ov.color);
-      gsap.to(floodPlane.position, { y: ov.height, duration, ease: "power2.inOut", overwrite: true });
-      gsap.to(floodPlane.material, { opacity: ov.opacity, duration, overwrite: true });
-      gsap.to(floodPlane.material.color, { r: c.r, g: c.g, b: c.b, duration, overwrite: true });
     }
 
     /* --------------------------------------------------------------------------
@@ -2828,7 +2661,7 @@ CHOOSING A PART — match the thing to the part:
     // The ledger is the visible proof that a guest's decree outlived their visit.
     // A row per DECREE, not per layer. The ledger used to render straight off
     // `worldLayers`, which only exist for decrees that produce geometry — so a decree
-    // that flooded the streets or reskinned every tower left the panel reading "City
+    // that darkened the sky or reskinned every tower left the panel reading "City
     // unmarked" while the city was visibly holding it. Rows now come from the persisted
     // history, with live layers folded in for their object counts, plus any layer that
     // never was a decree (a preset, an ambient spawn) listed on its own.
@@ -3213,76 +3046,23 @@ CHOOSING A PART — match the thing to the part:
       return layer;
     }
 
-    /* --------------------------------------------------------------------------
-       Atmospheric Particle Systems (Cyber Sparks, Spores, Smog)
-       -------------------------------------------------------------------------- */
-    function createAtmosphericParticles() {
-      // 1. Cyber Neon Sparks
-      const sparkCount = 300;
-      const sparkGeom = new THREE.BufferGeometry();
-      const sparkPos = new Float32Array(sparkCount * 3);
-      for (let i = 0; i < sparkCount * 3; i += 3) {
-        sparkPos[i] = (Math.random() - 0.5) * 35;
-        sparkPos[i + 1] = Math.random() * 20;
-        sparkPos[i + 2] = (Math.random() - 0.5) * 35;
-      }
-      sparkGeom.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
-      const sparkMat = new THREE.PointsMaterial({
-        color: 0x00f0ff,
-        size: 0.18,
-        transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending
-      });
-      particleSystems.cyber = new THREE.Points(sparkGeom, sparkMat);
-      scene.add(particleSystems.cyber);
-
-      // 2. Nature Bio-Spores (Green / Golden Fireflies)
-      const sporeCount = 200;
-      const sporeGeom = new THREE.BufferGeometry();
-      const sporePos = new Float32Array(sporeCount * 3);
-      for (let i = 0; i < sporeCount * 3; i += 3) {
-        sporePos[i] = (Math.random() - 0.5) * 30;
-        sporePos[i + 1] = Math.random() * 12;
-        sporePos[i + 2] = (Math.random() - 0.5) * 30;
-      }
-      sporeGeom.setAttribute('position', new THREE.BufferAttribute(sporePos, 3));
-      const sporeMat = new THREE.PointsMaterial({
-        color: 0x34d399,
-        size: 0.22,
-        transparent: true,
-        opacity: 0.5,
-        blending: THREE.AdditiveBlending
-      });
-      particleSystems.spores = new THREE.Points(sporeGeom, sporeMat);
-      scene.add(particleSystems.spores);
-
-      // 3. Smoke / Anarchy Ash
-      const smokeCount = 250;
-      const smokeGeom = new THREE.BufferGeometry();
-      const smokePos = new Float32Array(smokeCount * 3);
-      for (let i = 0; i < smokeCount * 3; i += 3) {
-        smokePos[i] = (Math.random() - 0.5) * 35;
-        smokePos[i + 1] = Math.random() * 15;
-        smokePos[i + 2] = (Math.random() - 0.5) * 35;
-      }
-      smokeGeom.setAttribute('position', new THREE.BufferAttribute(smokePos, 3));
-      const smokeMat = new THREE.PointsMaterial({
-        color: 0xff3300,
-        size: 0.35,
-        transparent: true,
-        opacity: 0.0, // Active at low order
-        blending: THREE.NormalBlending
-      });
-      particleSystems.smoke = new THREE.Points(smokeGeom, smokeMat);
-      scene.add(particleSystems.smoke);
-    }
-
     /* ==========================================================================
        4. GSAP SMOOTH SIMULATION MORPHING ENGINE
        ========================================================================== */
     function applyStateTransformation(targetState, duration = 2.0) {
       playSoundEffect('morph');
+
+      // Style-lock chokepoint: every decree, preset and restored snapshot resolves to
+      // a targetState and calls this function, so clamping here covers all of them.
+      if (STYLE_LOCK.enabled) {
+        const c = STYLE_LOCK.clamp;
+        targetState = Object.assign({}, targetState, {
+          natureLevel: Math.min(c.natureLevel[1], Math.max(c.natureLevel[0], targetState.natureLevel)),
+          techLevel:   Math.min(c.techLevel[1],   Math.max(c.techLevel[0],   targetState.techLevel)),
+          orderLevel:  Math.min(c.orderLevel[1],  Math.max(c.orderLevel[0],  targetState.orderLevel)),
+          dominantColor: STYLE_LOCK.moodHex
+        });
+      }
 
       // 1. GSAP Tween Core Values
       gsap.to(cityState, {
@@ -3301,7 +3081,7 @@ CHOOSING A PART — match the thing to the part:
       cityState.dominantColor = targetState.dominantColor || "#00f0ff";
       cityState.headline = targetState.headline || cityState.headline;
 
-      // Tween Sky Fog and Directional Lighting
+      // Tween Sky and Directional Lighting
       const targetColor = new THREE.Color(cityState.dominantColor);
       const skyBaseColor = new THREE.Color(0x07090e).lerp(targetColor, 0.15);
 
@@ -3309,20 +3089,6 @@ CHOOSING A PART — match the thing to the part:
         r: skyBaseColor.r,
         g: skyBaseColor.g,
         b: skyBaseColor.b,
-        duration: duration
-      });
-
-      gsap.to(scene.fog.color, {
-        r: skyBaseColor.r,
-        g: skyBaseColor.g,
-        b: skyBaseColor.b,
-        duration: duration
-      });
-
-      // Dense toxic fog at low order, crisp fog at high order
-      const targetFogDensity = 0.01 + (1.0 - targetState.orderLevel) * 0.035;
-      gsap.to(scene.fog, {
-        density: targetFogDensity,
         duration: duration
       });
 
@@ -3471,26 +3237,6 @@ CHOOSING A PART — match the thing to the part:
         });
       });
 
-      // 5. Update Particle System Opacities
-      if (particleSystems.cyber) {
-        gsap.to(particleSystems.cyber.material, {
-          opacity: targetState.techLevel * 0.75,
-          duration: duration
-        });
-      }
-      if (particleSystems.spores) {
-        gsap.to(particleSystems.spores.material, {
-          opacity: targetState.natureLevel * 0.8,
-          duration: duration
-        });
-      }
-      if (particleSystems.smoke) {
-        gsap.to(particleSystems.smoke.material, {
-          opacity: Math.max(0, (1.0 - targetState.orderLevel) * 0.85),
-          duration: duration
-        });
-      }
-
       // 6. Update Citizens Visors & Clothing Fabrics
       citizens.forEach((c) => {
         let citizenTorsoColor = new THREE.Color(0x1e293b);
@@ -3517,7 +3263,7 @@ CHOOSING A PART — match the thing to the part:
         });
       });
 
-      // 7. Update District Lights, Streetlights, Searchlights, and Window Glows
+      // 7. Update District Lights, Streetlights, and Window Glows
       districtLights.forEach((dl) => {
         gsap.to(dl.light.color, {
           r: targetColor.r,
@@ -3535,15 +3281,6 @@ CHOOSING A PART — match the thing to the part:
           duration: duration
         });
         gsap.to(sl.groundMat.color, {
-          r: targetColor.r,
-          g: targetColor.g,
-          b: targetColor.b,
-          duration: duration
-        });
-      });
-
-      searchlights.forEach((sl) => {
-        gsap.to(sl.beamMat.color, {
           r: targetColor.r,
           g: targetColor.g,
           b: targetColor.b,
@@ -3778,22 +3515,6 @@ CHOOSING A PART — match the thing to the part:
         t.group.rotation.z = Math.sin(elapsedTime * 2 + t.seed) * 0.04 * cityState.natureLevel;
       });
 
-      // Particle Drift
-      if (particleSystems.cyber) {
-        particleSystems.cyber.rotation.y = elapsedTime * 0.04;
-      }
-      if (particleSystems.spores) {
-        particleSystems.spores.rotation.y = -elapsedTime * 0.025;
-      }
-      if (particleSystems.smoke) {
-        particleSystems.smoke.position.y = (elapsedTime * 1.2) % 15;
-      }
-
-      // Animate Volumetric Searchlights & Sweeping Sky Beams
-      searchlights.forEach((s) => {
-        s.pivot.rotation.y = elapsedTime * s.speed + s.phase;
-      });
-
       // Render Dynamic Holographic Billboard (real-time progress bar & waveforms)
       billboardRepaintAcc += delta;
       const billboardInterval = 1 / (billboardState.mode === 'processing'
@@ -3992,8 +3713,14 @@ CHOOSING A PART — match the thing to the part:
         return localSemanticParser(decreePrompt);
       }
 
-      const systemPrompt = `You are the 2127 Central Societal AI governing a futuristic metropolis in the year 2127. 
-A citizen or governor transmits an arbitrary decree, law, or wild vision. 
+      const styleLockPreamble = STYLE_LOCK.enabled ? `STYLE LOCK — this metropolis is a misted Kyoto temple-garden: timber, moss,
+still water, low eaves. Keep natureLevel in [0.75, 1.0], techLevel in [0.05, 0.35],
+orderLevel in [0.70, 0.95]. headline should read quiet and seasonal, not
+surveillance-state or wasteland diction, unless the decree explicitly demands it —
+the renderer will still clamp the numbers regardless of what you emit.\n\n` : '';
+
+      const systemPrompt = `${styleLockPreamble}You are the 2127 Central Societal AI governing a futuristic metropolis in the year 2127.
+A citizen or governor transmits an arbitrary decree, law, or wild vision.
 You must analyze this decree and output structured numerical values and zero-shot procedural descriptors representing the transformation of the city in 2127:
 - natureLevel: 0.0 (concrete wasteland/barren) to 1.0 (dense vertical forest/biophilic utopia)
 - techLevel: 0.0 (primitive/analog collapse) to 1.0 (hyper-advanced cyberpunk/quantum AI network)
@@ -4120,7 +3847,15 @@ You must analyze this decree and output structured numerical values and zero-sho
       const apiKey = getStoredApiKey();
       if (!apiKey) return null;
 
-      const systemPrompt = `You are the 2127 Central Societal AI. A citizen decree has already been
+      const styleLockPreamble = STYLE_LOCK.enabled ? `STYLE LOCK — this is a Kyoto garden city. retexture_buildings, ground_cover, set_sky,
+set_windows and tilt_buildings ops you emit are ignored — the renderer always
+re-asserts wood/moss/mist instead — so don't spend effort on them. set_building_height
+is honoured but clamped to a low-rise skyline. Compositions are still welcome: bias
+them toward trunk_canopy, root_web, arch, stair_terrace, dome and ring_halo (a torii
+is an arch with two spire posts; a pagoda is stacked stair_terrace and dome) over
+chrome or neon materials.\n\n` : '';
+
+      const systemPrompt = `${styleLockPreamble}You are the 2127 Central Societal AI. A citizen decree has already been
 resolved into societal parameters. You now have two powers over the metropolis, and most
 decrees deserve both:
 
@@ -4147,9 +3882,6 @@ Omit the array entirely when the decree changes nothing about the existing city.
       0.2 razes the skyline to stumps; 3 makes it a canyon of megatowers.
   { "op": "tilt_buildings", "degrees": 0-45 }
       Structural collapse, subsidence, an earthquake. 0 straightens the city back up.
-  { "op": "flood", "height": 0-9, "color": "#rrggbb", "opacity": 0.2-0.95 }
-      A water plane across the whole grid. A building is about 6 tall, so 1.5 is a
-      flooded street, 4 is a drowned district, 8 is a sunken city.
   { "op": "ground_cover", "material": <cover>, "color": "#rrggbb" }
       Resurfaces the ground. <cover> is one of: asphalt, grass, sand, water, ash, snow,
       circuit, lava, moss.
@@ -4345,8 +4077,6 @@ Compose a form that belongs in this city.`;
                     color: { type: "STRING", description: "Hex colour" },
                     multiplier: { type: "NUMBER", description: "set_building_height: 0.05-4" },
                     degrees: { type: "NUMBER", description: "tilt_buildings: 0-45" },
-                    height: { type: "NUMBER", description: "flood: 0-9 world units" },
-                    opacity: { type: "NUMBER", description: "flood: 0.2-0.95" },
                     fogDensity: { type: "NUMBER", description: "set_sky: 0-0.08" },
                     lit: { type: "NUMBER", description: "set_windows: 0-1" },
                     fraction: { type: "NUMBER", description: "replace_buildings: 0.05-1 of the skyline" },
@@ -4422,12 +4152,6 @@ Compose a form that belongs in this city.`;
         has('circuit', 'datagrid', 'motherboard')                     ? 'circuit' :
         has('wasteland', 'nuclear') || hasWord('ash', 'ashes')        ? 'ash' : null;
       if (cover) ops.push({ op: 'ground_cover', material: cover });
-
-      if (has('flood', 'drown', 'underwater', 'submerge', 'canal', 'ocean')
-          || hasWord('sea level', 'tide', 'tides')) {
-        const deep = has('drown', 'submerge', 'sunken', 'underwater');
-        ops.push({ op: 'flood', height: deep ? 5.5 : 1.6, color: '#0d3a55', opacity: 0.75 });
-      }
 
       if (has('blackout', 'darkness') || hasWord('lights out', 'power cut', 'grid collapse')) {
         ops.push({ op: 'set_windows', lit: 0.02 });
@@ -4626,13 +4350,6 @@ Compose a form that belongs in this city.`;
         ops: localCityOps(lower, color)
       };
     }
-
-    // Global quick helper for Zero-Shot UI Chips
-    window.submitWildPrompt = function(promptText) {
-      if (decreeInput) decreeInput.value = promptText;
-      playSoundEffect('click');
-      handleDecreeSubmission(promptText);
-    };
 
     /* ==========================================================================
        8. USER INTERACTION, REAL-TIME PROGRESS BILLBOARD & AUTO-GUEST STREAM
@@ -4970,15 +4687,6 @@ Compose a form that belongs in this city.`;
       }
     });
 
-    // Preset button handler
-    window.applyPreset = function(presetKey) {
-      const p = PRESETS[presetKey];
-      if (p) {
-        playSoundEffect('click');
-        applyStateTransformation(p, 2.0);
-      }
-    };
-
     // Camera control buttons
     document.getElementById('btn-reset-cam').addEventListener('click', () => {
       playSoundEffect('click');
@@ -4998,9 +4706,9 @@ Compose a form that belongs in this city.`;
        Lighting Atmosphere Mode Controller (Ultra-Neon / Solarpunk Daylight / Cyber Dusk)
        -------------------------------------------------------------------------- */
     const LIGHTING_MODES = [
-      { key: 'ultra', label: '照明: ウルトラ', exposure: 1.45, bg: '#07090e', fog: '#07090e', dir: 2.2, hemi: 1.3, point: 4.8, distInt: 3.4 },
-      { key: 'sun', label: '照明: 陽光', exposure: 1.6, bg: '#0284c7', fog: '#38bdf8', dir: 2.8, hemi: 1.8, point: 3.2, distInt: 2.2 },
-      { key: 'sunset', label: '照明: 黄昏', exposure: 1.5, bg: '#3b0764', fog: '#581c87', dir: 2.4, hemi: 1.4, point: 4.6, distInt: 3.8 }
+      { key: 'ultra', label: '照明: ウルトラ', exposure: 1.45, bg: '#07090e', dir: 2.2, hemi: 1.3, point: 4.8, distInt: 3.4 },
+      { key: 'sun', label: '照明: 陽光', exposure: 1.6, bg: '#0284c7', dir: 2.8, hemi: 1.8, point: 3.2, distInt: 2.2 },
+      { key: 'sunset', label: '照明: 黄昏', exposure: 1.5, bg: '#3b0764', dir: 2.4, hemi: 1.4, point: 4.6, distInt: 3.8 }
     ];
     let lightModeIdx = 0;
 
@@ -5010,7 +4718,6 @@ Compose a form that belongs in this city.`;
 
       gsap.to(renderer, { toneMappingExposure: cfg.exposure, duration: 1.2 });
       scene.background = new THREE.Color(cfg.bg);
-      scene.fog.color = new THREE.Color(cfg.fog);
 
       gsap.to(dirLight, { intensity: cfg.dir, duration: 1.2 });
       gsap.to(hemiLight, { intensity: cfg.hemi, duration: 1.2 });
@@ -5198,7 +4905,8 @@ Compose a form that belongs in this city.`;
     function wipeWorld() {
       worldLayers.slice().forEach((l) => retireLayer(l, true));
       Object.keys(cityOverrides).forEach((k) => { cityOverrides[k] = null; });
-      applyCityOverrides(0.6);
+      if (STYLE_LOCK.enabled) applyCityOps(lockOps([]), STYLE_LOCK.moodHex, 0.6);
+      else applyCityOverrides(0.6);
       decreeHistory = [];
       decreeRecordSeq = 0;
       lastResolvedState = null;
@@ -5215,6 +4923,14 @@ Compose a form that belongs in this city.`;
        ========================================================================== */
     window.addEventListener('DOMContentLoaded', async () => {
       init3D();
+      if (STYLE_LOCK.enabled) {
+        applyCityOps(lockOps([]), STYLE_LOCK.moodHex, 0.6);
+        const lockedLight = LIGHTING_MODES.find((m) => m.key === STYLE_LOCK.lighting);
+        if (lockedLight) {
+          lightModeIdx = LIGHTING_MODES.indexOf(lockedLight);
+          applyLightingMode(lockedLight);
+        }
+      }
       updateUIReadouts();
       envConfig = await loadEnvConfig();
       if (envConfig.GEMINI_API_KEY) {
